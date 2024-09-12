@@ -70,6 +70,12 @@ var initTablesQueries = []string{
 		email_addr varchar(200),
 		foreign key (email_list_id) references email_lists(id)
 	)`,
+	`create table if not exists outputs (
+		id varchar(50) primary key,
+		output_name varchar(30),
+		api_key varchar(100),
+		list_id varchar(100)
+	)`,
 }
 
 func (s *Storage) initTables() error {
@@ -336,4 +342,78 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 		&subscriber.EmailAddr,
 	)
 	return subscriber, err
+}
+
+func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
+	id := NewUUID()
+	output := makeOutput(id, cr.OutputName, cr.ApiKey, cr.ListID)
+
+	query := `
+		insert into outputs
+		(id, output_name, api_key, list_id)
+		values
+		($1, $2, $3, $4)
+	`
+	if _, err := s.db.Query(
+		query,
+		id,
+		output.OutputName(),
+		cr.ApiKey,
+		cr.ListID,
+	); err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}
+
+func (s *Storage) GetAllOutputs() ([]Output, error) {
+	outputs := []Output{}
+	rows, err := s.db.Query("select * from outputs")
+	if err != nil {
+		return outputs, err
+	}
+
+	for rows.Next() {
+		output, err := scanIntoOutput(rows)
+		if err != nil {
+			return nil, err
+		}
+		outputs = append(outputs, output)
+	}
+
+	return outputs, nil
+}
+
+func (s *Storage) GetOutputByID(id string) (Output, error) {
+	rows, err := s.db.Query("select * from outputs where id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoOutput(rows)
+	}
+	return nil, fmt.Errorf("output %s not found", id)
+
+}
+
+func scanIntoOutput(rows *sql.Rows) (Output, error) {
+	var (
+		id         string
+		outputName OutputName
+		apiKey     string
+		listID     string
+	)
+
+	err := rows.Scan(
+		&id,
+		&outputName,
+		&apiKey,
+		&listID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return makeOutput(id, outputName, apiKey, listID), nil
 }

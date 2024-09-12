@@ -3,13 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
-
-	"github.com/google/uuid"
 )
-
-func NewUUID() string {
-	return uuid.NewString()
-}
 
 func setCookie(w http.ResponseWriter, name CookieName, value string) {
 	cookie := &http.Cookie{

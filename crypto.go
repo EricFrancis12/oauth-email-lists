@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 const oauthDecEncDelim string = "%"
@@ -26,40 +28,52 @@ func NewOAuthDecEncoder(secret string, delim string) *OAuthDecEncoder {
 	}
 }
 
-func (o OAuthDecEncoder) Encode(emailListID string, providerName ProviderName) (oauthID string, err error) {
+func (o OAuthDecEncoder) Encode(emailListID string, providerName ProviderName, outputIDs []string) (oauthID string, err error) {
+	var parts = []string{
+		encodePart(emailListID),
+		encodePart(string(providerName)),
+		encodePart(strings.Join(outputIDs, outputCookieDelim)),
+	}
 	return Encrypt(
 		o.secret,
-		encodePart(emailListID)+o.delim+encodePart(string(providerName)),
+		strings.Join(parts, o.delim),
 	)
 
 }
 
-func (o OAuthDecEncoder) Decode(oauthID string) (emailListID string, provider OAuthProvider, err error) {
+func (o OAuthDecEncoder) Decode(oauthID string) (emailListID string, provider OAuthProvider, outputIDs []string, err error) {
 	str, err := Decrypt(o.secret, oauthID)
 	if err != nil {
-		return "", nil, err
+		return "", nil, []string{}, err
 	}
 
 	parts := strings.Split(str, o.delim)
-	if len(parts) != 2 {
-		return "", nil, invalidOauthID()
+	if len(parts) < 2 {
+		return "", nil, []string{}, invalidOauthID()
 	}
 
 	if emailListID, err = decodePart(parts[0]); err != nil {
-		return "", nil, invalidOauthID()
+		return "", nil, []string{}, invalidOauthID()
 	}
 
-	if s, err := decodePart(parts[1]); err != nil {
-		return "", nil, invalidOauthID()
-	} else {
-		pn, err := ToProviderName(s)
-		if err != nil {
-			return "", nil, invalidOauthID()
-		}
-		provider = NewOAuthProvider(pn)
+	s, err := decodePart(parts[1])
+	if err != nil {
+		return "", nil, []string{}, invalidOauthID()
 	}
+	pn, err := ToProviderName(s)
+	if err != nil {
+		return "", nil, []string{}, invalidOauthID()
+	}
+	provider = NewOAuthProvider(pn)
 
-	return emailListID, provider, nil
+	outputIDStr, err := decodePart(parts[2])
+
+	if err != nil {
+		return "", nil, []string{}, invalidOauthID()
+	}
+	outputIDs = strings.Split(outputIDStr, outputCookieDelim)
+
+	return emailListID, provider, outputIDs, nil
 }
 
 func Encrypt(secret, value string) (string, error) {
@@ -130,6 +144,10 @@ func validDelim(delim string) bool {
 		}
 	}
 	return true
+}
+
+func NewUUID() string {
+	return uuid.NewString()
 }
 
 func invalidOauthID() error {

@@ -59,6 +59,29 @@ type EmailListUpdateReq struct {
 	Name string `json:"name"`
 }
 
+type Output interface {
+	OutputName() OutputName
+	Handle(emailAddr string, name string) error
+}
+
+type OutputCreationReq struct {
+	OutputName OutputName `json:"outputName"`
+	ApiKey     string     `json:"apiKey"`
+	ListID     string     `json:"listId"`
+}
+
+type AWeberOutput struct {
+	ID     string `json:"id"`
+	ApiKey string `json:"apiKey"`
+	ListID string `json:"listId"`
+}
+
+type ResendOutput struct {
+	ID     string `json:"id"`
+	ApiKey string `json:"apiKey"`
+	ListID string `json:"listId"`
+}
+
 type Subscriber struct {
 	ID          string `json:"id"`
 	EmailListID string `json:"emailListId"`
@@ -89,9 +112,10 @@ type SubscriberUpdateReq struct {
 type CookieName string
 
 const (
-	CookieNameEmailListID  CookieName = "emailListId"
-	CookieNameProviderName CookieName = "providerName"
 	CookieNameCreatedAt    CookieName = "createdAt"
+	CookieNameEmailListID  CookieName = "emailListId"
+	CookieNameOutputIDs    CookieName = "outputIds"
+	CookieNameProviderName CookieName = "providerName"
 )
 
 const (
@@ -106,6 +130,24 @@ const (
 	HTTPHeaderContentType string = "Content-Type"
 	HTTPHeaderJWTToken    string = "X-JWT-Token"
 )
+
+type OutputName string
+
+const (
+	OutputNameAWeber OutputName = "aweber"
+	OutputNameResend OutputName = "resend"
+)
+
+var outputNames = []OutputName{}
+
+func ToOutputName(str string) (OutputName, error) {
+	for _, on := range outputNames {
+		if string(on) == str {
+			return on, nil
+		}
+	}
+	return "", fmt.Errorf("invalid OutputName %s", str)
+}
 
 type ProviderName string
 

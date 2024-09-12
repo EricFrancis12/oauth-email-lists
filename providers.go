@@ -2,12 +2,14 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"time"
 )
 
 const (
-	timestampFormat string = time.UnixDate
-	timestampLayout string = "Mon Jan 2 15:04:05 CDT 2006"
+	timestampFormat   string = time.UnixDate
+	timestampLayout   string = "Mon Jan 2 15:04:05 CDT 2006"
+	outputCookieDelim string = "---"
 )
 
 type OAuthProvider interface {
@@ -67,13 +69,15 @@ func (gpr GoogleProviderResult) ToSubscriber(emailListID string) Subscriber {
 type ProviderCookie struct {
 	EmailListID  string
 	ProviderName ProviderName
+	OutputIDs    []string
 	CreatedAt    time.Time
 }
 
-func NewProviderCookie(emailListID string, providerName ProviderName) *ProviderCookie {
+func NewProviderCookie(emailListID string, providerName ProviderName, outputIDs []string) *ProviderCookie {
 	return &ProviderCookie{
 		EmailListID:  emailListID,
 		ProviderName: providerName,
+		OutputIDs:    outputIDs,
 		CreatedAt:    time.Now(),
 	}
 }
@@ -83,20 +87,26 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	pnc, err := r.Cookie(string(CookieNameProviderName))
 	if err != nil {
 		return nil, err
 	}
-	cac, err := r.Cookie(string(CookieNameCreatedAt))
-	if err != nil {
-		return nil, err
-	}
-
 	providerName, err := ToProviderName(pnc.Value)
 	if err != nil {
 		return nil, err
 	}
 
+	oidc, err := r.Cookie(string(CookieNameEmailListID))
+	if err != nil {
+		return nil, err
+	}
+	outputIDs := strings.Split(oidc.Value, outputCookieDelim)
+
+	cac, err := r.Cookie(string(CookieNameCreatedAt))
+	if err != nil {
+		return nil, err
+	}
 	createdAt, err := time.Parse(timestampLayout, cac.Value)
 	if err != nil {
 		return nil, err
@@ -105,6 +115,7 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 	return &ProviderCookie{
 		EmailListID:  elidc.Value,
 		ProviderName: providerName,
+		OutputIDs:    outputIDs,
 		CreatedAt:    createdAt,
 	}, nil
 }
@@ -112,5 +123,6 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 func (pc ProviderCookie) Set(w http.ResponseWriter) {
 	setCookie(w, CookieNameEmailListID, pc.EmailListID)
 	setCookie(w, CookieNameProviderName, string(pc.ProviderName))
+	setCookie(w, CookieNameOutputIDs, strings.Join(pc.OutputIDs, outputCookieDelim))
 	setCookie(w, CookieNameCreatedAt, pc.CreatedAt.Format(timestampFormat))
 }

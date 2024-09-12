@@ -46,20 +46,31 @@ func TestCrypto(t *testing.T) {
 		var (
 			emailListID  string       = "abcdefgh"
 			providerName ProviderName = ProviderNameGoogle
+			outputIDs                 = []string{
+				"1234",
+				"5678",
+			}
 		)
 
 		de := NewOAuthDecEncoder(secret, delim)
 
-		encrypted, err := de.Encode(emailListID, providerName)
+		encrypted, err := de.Encode(emailListID, providerName, outputIDs)
 		assert.Nil(t, err)
 		assert.NotEqual(t, emailListID, encrypted)
 		assert.NotEqual(t, providerName, encrypted)
 		assert.NotEqual(t, string(providerName), encrypted)
 		assert.NotEqual(t, emailListID+de.delim+string(providerName), encrypted)
 
-		decEmailListID, decProvider, err := de.Decode(encrypted)
+		decEmailListID, decProvider, decOutputIDs, err := de.Decode(encrypted)
 		assert.Nil(t, err)
-		assert.Equal(t, decEmailListID, emailListID)
-		assert.Equal(t, decProvider.Name(), providerName)
+		assert.Equal(t, emailListID, decEmailListID)
+		assert.Equal(t, providerName, decProvider.Name())
+		assert.Equal(t, outputIDs, decOutputIDs)
 	})
+}
+
+func TestUUID(t *testing.T) {
+	uuid := NewUUID()
+	assert.NotContains(t, uuid, oauthDecEncDelim)
+	assert.NotContains(t, uuid, outputCookieDelim)
 }

@@ -62,6 +62,10 @@ func (a *Server) Run() error {
 
 	router.HandleFunc("/subscribers", handleGetAllSubscribers).Methods(http.MethodGet)
 
+	router.HandleFunc("/outputs", handleInsertNewOutput).Methods(http.MethodPost)
+	router.HandleFunc("/outputs", handleGetAllOutputs).Methods(http.MethodGet)
+	router.HandleFunc("/outputs/{outputID}", handleGetOutputByID).Methods(http.MethodGet)
+
 	listenAddr := FallbackIfEmpty(a.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
@@ -74,14 +78,14 @@ func handleOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// oauthID can be decoded to get the emailListID and providerName
-	emailListID, provider, err := decenc.Decode(oauthID)
+	// oauthID can be decoded to get the emailListID, providerName, and outputNames
+	emailListID, provider, outputIDs, err := decenc.Decode(oauthID)
 	if err != nil {
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
 
-	NewProviderCookie(emailListID, provider.Name()).Set(w)
+	NewProviderCookie(emailListID, provider.Name(), outputIDs).Set(w)
 
 	provider.Redirect(w, r)
 }
@@ -94,25 +98,19 @@ func handleGoogleOAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider := NewOAuthProvider(ProviderNameGoogle)
-	NewProviderCookie(emailListID, provider.Name()).Set(w)
+	NewProviderCookie(emailListID, provider.Name(), []string{}).Set(w)
 	provider.Redirect(w, r)
 }
 
 var googleOAuthStateString = uuid.NewString()
 
 func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("~ 0")
-
 	WriteJSON(w, http.StatusOK, struct{}{})
-
-	fmt.Println("~ 1")
 
 	state := r.URL.Query().Get("state")
 	if state != googleOAuthStateString {
 		return
 	}
-
-	fmt.Println("~ 2")
 
 	googleOauthConfig := config.Google()
 
@@ -122,8 +120,6 @@ func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("~ 3")
-
 	client := googleOauthConfig.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
@@ -131,41 +127,38 @@ func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("~ 4")
-
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
-
-	fmt.Println("~ 5")
 
 	var gpr GoogleProviderResult
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&gpr); err != nil {
 		return
 	}
 
-	fmt.Println("~ 6")
-
 	pc, err := ProviderCookieFrom(r)
 	if err != nil {
 		return
 	}
 
-	fmt.Println("~ 7")
+	go func() {
+		for _, outputID := range pc.OutputIDs {
+			output, err := storage.GetOutputByID(outputID)
+			if err != nil {
+				continue
+			}
+			output.Handle(gpr.Email, gpr.Name)
+		}
+	}()
 
 	cr := SubscriberCreationReq{
 		EmailListID: pc.EmailListID,
 		Name:        gpr.Name,
 		EmailAddr:   gpr.Email,
 	}
-	if _, err := storage.InsertNewSubscriber(cr); err != nil {
-		fmt.Println("~ 8")
-		fmt.Println(err.Error())
-		return
-	}
 
-	fmt.Println("~ 9")
+	storage.InsertNewSubscriber(cr)
 }
 
 func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +184,6 @@ func handleGetAllUsers(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
 	}
-
 	WriteJSON(w, http.StatusOK, users)
 }
 
@@ -271,7 +263,6 @@ func handleGetAllEmailLists(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
 	}
-
 	WriteJSON(w, http.StatusOK, emailLists)
 }
 
@@ -283,4 +274,46 @@ func handleGetAllSubscribers(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, subscribers)
+}
+
+func handleInsertNewOutput(w http.ResponseWriter, r *http.Request) {
+	var cr OutputCreationReq
+	err := json.NewDecoder(r.Body).Decode(&cr)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		return
+	}
+
+	output, err := storage.InsertNewOutput(cr)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, output)
+}
+
+func handleGetAllOutputs(w http.ResponseWriter, r *http.Request) {
+	outputs, err := storage.GetAllOutputs()
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		return
+	}
+	WriteJSON(w, http.StatusOK, outputs)
+}
+
+func handleGetOutputByID(w http.ResponseWriter, r *http.Request) {
+	outputID := mux.Vars(r)["outputID"]
+	if outputID == "" {
+		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		return
+	}
+
+	output, err := storage.GetOutputByID(outputID)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, output)
 }
