@@ -24,7 +24,6 @@ func NewServer(listenAddr string) *Server {
 	}
 }
 
-// TODO: replace all json responses with JsonResponse
 type JsonResponse struct {
 	Success bool   `json:"success"`
 	Data    any    `json:"data,omitempty"`
@@ -45,10 +44,6 @@ func NewJsonResponse(success bool, data any, err error) *JsonResponse {
 
 func (s *Server) Run() error {
 	router := mux.NewRouter()
-
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hi"))
-	})
 
 	router.HandleFunc("/c", Auth(handleMakeCampaign)).Methods(http.MethodPost)
 	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
@@ -71,9 +66,16 @@ func (s *Server) Run() error {
 	router.HandleFunc("/outputs", handleGetAllOutputsByUserID).Methods(http.MethodGet)
 	router.HandleFunc("/outputs/{outputID}", handleGetOutputByIDAndUserID).Methods(http.MethodGet)
 
+	router.HandleFunc("/", handleCatchAll)
+	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
+
 	listenAddr := FallbackIfEmpty(s.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
+}
+
+func handleCatchAll(w http.ResponseWriter, r *http.Request) {
+	RedirectToCatchAllUrl(w, r)
 }
 
 func handleCampaign(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +99,8 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
+	outputIDs := r.URL.Query()["o"]
+
 	emailListID := mux.Vars(r)["emailListID"]
 	if emailListID == "" {
 		RedirectToCatchAllUrl(w, r)
@@ -104,7 +108,7 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider := NewOAuthProvider(ProviderNameGoogle)
-	NewProviderCookie(emailListID, provider.Name(), []string{}).Set(w)
+	NewProviderCookie(emailListID, provider.Name(), outputIDs).Set(w)
 	provider.Redirect(w, r)
 }
 
