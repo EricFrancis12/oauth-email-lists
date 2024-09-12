@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -47,24 +48,40 @@ type Subscriber struct {
 	EmailAddr   string
 }
 
-type OAuthProvider interface {
-	GetResult() (OAuthResult, error)
-}
-
-type OAuthResult struct {
-	Name      string
-	EmailAddr string
-}
-
-func (o OAuthResult) ToNewSubscriber(emailListID string) *Subscriber {
-	return &Subscriber{
-		ID:          NewUUID(),
-		EmailListID: emailListID,
-		Name:        o.Name,
-		EmailAddr:   o.EmailAddr,
-	}
-}
+type CookieName string
 
 const (
-	HTTPHeaderContentType string = "Content-Type"
+	CookieNameEmailListID  CookieName = "emailListId"
+	CookieNameProviderName CookieName = "providerName"
+	CookieNameCreatedAt    CookieName = "createdAt"
 )
+
+const (
+	EnvCatchAllRedirectUrl string = "CATCH_ALL_REDIRECT_URL"
+	EnvCryptoSecret        string = "CRYPTO_SECRET"
+	EnvGoogleClientID      string = "GOOGLE_CLIENT_ID"
+	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"
+)
+
+const HTTPHeaderContentType string = "Content-Type"
+
+type ProviderName string
+
+const (
+	ProviderNameDiscord ProviderName = "Discord"
+	ProviderNameGoogle  ProviderName = "Google"
+)
+
+var providerNames = []ProviderName{
+	ProviderNameDiscord,
+	ProviderNameGoogle,
+}
+
+func ToProviderName(str string) (ProviderName, error) {
+	for _, pn := range providerNames {
+		if string(pn) == str {
+			return pn, nil
+		}
+	}
+	return "", fmt.Errorf("invalid ProviderName %s", str)
+}

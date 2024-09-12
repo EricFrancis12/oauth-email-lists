@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -12,6 +16,12 @@ const defaultListenAddr string = ":6004"
 
 type Server struct {
 	ListenAddr string
+}
+
+func NewServer(listenAddr string) *Server {
+	return &Server{
+		ListenAddr: listenAddr,
+	}
 }
 
 type ServerError struct {
@@ -30,18 +40,16 @@ func NewServerErrorFromStr(errMsg string) ServerError {
 	}
 }
 
-func NewServer(listenAddr string) *Server {
-	return &Server{
-		ListenAddr: listenAddr,
-	}
-}
-
 func (a *Server) Run() error {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hi"))
 	})
+
+	router.HandleFunc("/g/{oauthID}", handleOAuth).Methods(http.MethodGet)
+	router.HandleFunc("/g/google/{emailListID}", handleGoogleOAuth).Methods(http.MethodGet)
+	router.HandleFunc("/callback/google", handleGoogleOAuthCallback).Methods(http.MethodGet)
 
 	router.HandleFunc("/users", handleInsertNewUser).Methods(http.MethodPost)
 	router.HandleFunc("/users", handleGetAllUsers).Methods(http.MethodGet)
@@ -53,6 +61,85 @@ func (a *Server) Run() error {
 	listenAddr := FallbackIfEmpty(a.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
+}
+
+func handleOAuth(w http.ResponseWriter, r *http.Request) {
+	oauthID := mux.Vars(r)["oauthID"]
+	if oauthID == "" {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
+	// oauthID can be decoded to get the emailListID and providerName
+	emailListID, provider, err := decenc.Decode(oauthID)
+	if err != nil {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
+	NewProviderCookie(emailListID, provider.Name()).Set(w)
+
+	provider.Redirect(w, r)
+}
+
+func handleGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	emailListID := mux.Vars(r)["emailListID"]
+	if emailListID == "" {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
+	provider := NewOAuthProvider(ProviderNameGoogle)
+	NewProviderCookie(emailListID, provider.Name()).Set(w)
+	provider.Redirect(w, r)
+}
+
+var googleOAuthStateString = uuid.NewString()
+
+func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	if state != googleOAuthStateString {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+
+	googleOauthConfig := config.Google()
+
+	code := r.URL.Query().Get("code")
+	token, err := googleOauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+
+	client := googleOauthConfig.Client(context.Background(), token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+
+	var gpr GoogleProviderResult
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&gpr); err != nil {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+
+	if _, err := ProviderCookieFrom(r); err != nil {
+		WriteJSON(w, http.StatusOK, struct{}{})
+		return
+	}
+
+	// subscriber := gpr.ToSubscriber(pc.EmailListID)
+
+	// TODO: add subscriber to email list
 }
 
 func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
@@ -133,10 +220,4 @@ func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, struct{}{})
-}
-
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
 }
