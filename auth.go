@@ -35,7 +35,7 @@ func useProtectedRoute(w http.ResponseWriter, r *http.Request) (*User, error) {
 	if err != nil || !token.Valid {
 		username, password, ok := r.BasicAuth()
 		if !ok || username == "" || password == "" {
-			return nil, unauthorizedError()
+			return nil, unauthorized()
 		}
 
 		// Check if credentials match root user credentials
@@ -131,10 +131,6 @@ func validPassword(password string) (bool, error) {
 	return true, nil
 }
 
-func unauthorizedError() error {
+func unauthorized() error {
 	return fmt.Errorf("unauthorized")
-}
-
-func WriteUnauthorized(w http.ResponseWriter) error {
-	return WriteJSON(w, http.StatusUnauthorized, unauthorizedError())
 }

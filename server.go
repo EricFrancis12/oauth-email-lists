@@ -24,39 +24,22 @@ func NewServer(listenAddr string) *Server {
 	}
 }
 
-// TODO: replace all json responses with ServerResponseJSON
-type ServerResponseJSON struct {
+// TODO: replace all json responses with JsonResponse
+type JsonResponse struct {
 	Success bool   `json:"success"`
 	Data    any    `json:"data,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
 
-func NewServerResponseJSON(success bool, data any, err error) *ServerResponseJSON {
+func NewJsonResponse(success bool, data any, err error) *JsonResponse {
 	errMsg := ""
 	if err != nil {
 		errMsg = err.Error()
 	}
-
-	return &ServerResponseJSON{
+	return &JsonResponse{
 		Success: success,
 		Data:    data,
 		Error:   errMsg,
-	}
-}
-
-type ServerError struct {
-	Error string `json:"error"`
-}
-
-func NewServerError(err error) ServerError {
-	return ServerError{
-		Error: err.Error(),
-	}
-}
-
-func NewServerErrorFromStr(errMsg string) ServerError {
-	return ServerError{
-		Error: errMsg,
 	}
 }
 
@@ -128,7 +111,9 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 var googleOAuthStateString = uuid.NewString()
 
 func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
-	WriteJSON(w, http.StatusOK, struct{}{})
+	// TODO: add ability to speficy redirect url at the campaign level,
+	// and store it via cookie to be retrieved here
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
 
 	state := r.URL.Query().Get("state")
 	if state != googleOAuthStateString {
@@ -195,96 +180,96 @@ func handleMakeCampaign(w http.ResponseWriter, r *http.Request) {
 	var c Campaign
 	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	link, err := c.Link()
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, NewServerResponseJSON(true, link, nil))
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, link, nil))
 }
 
 func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
 	var cr UserCreationReq
 	err := json.NewDecoder(r.Body).Decode(&cr)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	user, err := storage.InsertNewUser(cr)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, user)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, user, nil))
 }
 
 func handleGetAllUsers(w http.ResponseWriter, _ *http.Request) {
 	users, err := storage.GetAllUsers()
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
-	WriteJSON(w, http.StatusOK, users)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, users, nil))
 }
 
 func handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["userID"]
 	if userID == "" {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("user ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
 	}
 
 	user, err := storage.GetUserByID(userID)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, user)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, user, nil))
 }
 
 func handleUpdateUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["userID"]
 	if userID == "" {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("user ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
 	}
 
 	var ur UserUpdateReq
 	err := json.NewDecoder(r.Body).Decode(&ur)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	if err := storage.UpdateUserByID(userID, ur); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, struct{}{})
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
 }
 
 func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["userID"]
 	if userID == "" {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("user ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
 	}
 
 	if err := storage.DeleteUserByID(userID); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, struct{}{})
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
 }
 
 func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
@@ -296,7 +281,7 @@ func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
 
 	var cr EmailListCreationReq
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 	if !IsRootUser(user) {
@@ -305,11 +290,11 @@ func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
 
 	emailList, err := storage.InsertNewEmailList(cr)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, emailList)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, emailList, nil))
 }
 
 func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
@@ -330,11 +315,11 @@ func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
 		emailLists, err = storage.GetAllEmailListsByUserID(user.ID)
 	}
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, emailLists)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, emailLists, nil))
 }
 
 func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
@@ -355,11 +340,11 @@ func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
 		subscribers, err = storage.GetAllSubscribersByUserID(user.ID)
 	}
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, subscribers)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, subscribers, nil))
 }
 
 func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +356,7 @@ func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
 
 	var cr OutputCreationReq
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 	if !IsRootUser(user) {
@@ -380,11 +365,11 @@ func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
 
 	output, err := storage.InsertNewOutput(cr)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, output)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, output, nil))
 }
 
 func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
@@ -405,10 +390,10 @@ func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
 		outputs, err = storage.GetAllOutputsByUserID(user.ID)
 	}
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
-	WriteJSON(w, http.StatusOK, outputs)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, outputs, nil))
 }
 
 func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
@@ -425,7 +410,7 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 
 	outputID := mux.Vars(r)["outputID"]
 	if outputID == "" {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
 
@@ -435,9 +420,21 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 		output, err = storage.GetOutputByIDAndUserID(outputID, user.ID)
 	}
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
 
 	WriteJSON(w, http.StatusOK, output)
+}
+
+func WriteUnauthorized(w http.ResponseWriter) error {
+	return WriteJSON(w, http.StatusUnauthorized, NewJsonResponse(false, nil, unauthorized()))
+}
+
+func userIDNotProvided() error {
+	return fmt.Errorf("user ID not provided")
+}
+
+func outputIDNotProvided() error {
+	return fmt.Errorf("output ID not provided")
 }
