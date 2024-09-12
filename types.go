@@ -2,38 +2,33 @@ package main
 
 import (
 	"fmt"
+	"net/url"
+	"os"
 	"time"
 )
 
-type User struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	HashedPassword string    `json:"hashedPassword"`
-	CreatedAt      time.Time `json:"createdAt"`
+type Campaign struct {
+	EmailListID  string       `json:"emailListId"`
+	ProviderName ProviderName `json:"providerName"`
+	OutputIDs    []string     `json:"outputIds"`
 }
 
-func NewUser(name string, password string) (*User, error) {
-	hpw, err := hashPassword(password)
+func (c Campaign) Link() (string, error) {
+	oauthID, err := decenc.Encode(c.EmailListID, c.ProviderName, c.OutputIDs)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &User{
-		ID:             NewUUID(),
-		Name:           name,
-		HashedPassword: string(hpw),
-		CreatedAt:      time.Now(),
-	}, nil
-}
+	var (
+		protocol = os.Getenv(EnvProtocol)
+		hostname = os.Getenv(EnvHostname)
+	)
 
-type UserCreationReq struct {
-	Name     string
-	Password string
-}
+	if protocol == "" || hostname == "" {
+		return "", fmt.Errorf("environment variables %s and %s are required", EnvProtocol, EnvHostname)
+	}
 
-type UserUpdateReq struct {
-	Name     string
-	Password string
+	return fmt.Sprintf("%s//%s/c?c=%s", protocol, hostname, url.QueryEscape(oauthID)), nil
 }
 
 type EmailList struct {
@@ -109,6 +104,37 @@ type SubscriberUpdateReq struct {
 	EmailAddr string `json:"emailAddr"`
 }
 
+type User struct {
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	HashedPassword string    `json:"hashedPassword"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
+
+func NewUser(name string, password string) (*User, error) {
+	hpw, err := hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		ID:             NewUUID(),
+		Name:           name,
+		HashedPassword: string(hpw),
+		CreatedAt:      time.Now(),
+	}, nil
+}
+
+type UserCreationReq struct {
+	Name     string
+	Password string
+}
+
+type UserUpdateReq struct {
+	Name     string
+	Password string
+}
+
 type CookieName string
 
 const (
@@ -123,7 +149,9 @@ const (
 	EnvCryptoSecret        string = "CRYPTO_SECRET"
 	EnvGoogleClientID      string = "GOOGLE_CLIENT_ID"
 	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"
+	EnvHostname            string = "HOST_NAME"
 	EnvJWTSecret           string = "JWT_SECRET"
+	EnvProtocol            string = "PROTOCOL"
 )
 
 const (
@@ -169,3 +197,5 @@ func ToProviderName(str string) (ProviderName, error) {
 	}
 	return "", fmt.Errorf("invalid ProviderName %s", str)
 }
+
+const QueryParamC string = "c"

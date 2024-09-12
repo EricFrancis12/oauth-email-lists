@@ -24,6 +24,26 @@ func NewServer(listenAddr string) *Server {
 	}
 }
 
+// TODO: replace all json responses with ServerResponseJSON
+type ServerResponseJSON struct {
+	Success bool   `json:"success"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func NewServerResponseJSON(success bool, data any, err error) *ServerResponseJSON {
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
+
+	return &ServerResponseJSON{
+		Success: success,
+		Data:    data,
+		Error:   errMsg,
+	}
+}
+
 type ServerError struct {
 	Error string `json:"error"`
 }
@@ -47,9 +67,11 @@ func (a *Server) Run() error {
 		w.Write([]byte("hi"))
 	})
 
-	router.HandleFunc("/g/{oauthID}", handleOAuth).Methods(http.MethodGet)
-	router.HandleFunc("/t/google/{emailListID}", handleGoogleOAuth).Methods(http.MethodGet)
-	router.HandleFunc("/callback/google", handleGoogleOAuthCallback).Methods(http.MethodGet)
+	router.HandleFunc("/c", handleMakeCampaign).Methods(http.MethodPost)
+	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
+
+	router.HandleFunc("/t/google/{emailListID}", handleGoogleCampaign).Methods(http.MethodGet)
+	router.HandleFunc("/callback/google", handleGoogleCampaignCallback).Methods(http.MethodGet)
 
 	router.HandleFunc("/users", handleInsertNewUser).Methods(http.MethodPost)
 	router.HandleFunc("/users", handleGetAllUsers).Methods(http.MethodGet)
@@ -71,8 +93,9 @@ func (a *Server) Run() error {
 	return http.ListenAndServe(listenAddr, router)
 }
 
-func handleOAuth(w http.ResponseWriter, r *http.Request) {
-	oauthID := mux.Vars(r)["oauthID"]
+func handleCampaign(w http.ResponseWriter, r *http.Request) {
+	oauthID := r.URL.Query().Get(QueryParamC)
+
 	if oauthID == "" {
 		RedirectToCatchAllUrl(w, r)
 		return
@@ -90,7 +113,7 @@ func handleOAuth(w http.ResponseWriter, r *http.Request) {
 	provider.Redirect(w, r)
 }
 
-func handleGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 	emailListID := mux.Vars(r)["emailListID"]
 	if emailListID == "" {
 		RedirectToCatchAllUrl(w, r)
@@ -104,7 +127,7 @@ func handleGoogleOAuth(w http.ResponseWriter, r *http.Request) {
 
 var googleOAuthStateString = uuid.NewString()
 
-func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, struct{}{})
 
 	state := r.URL.Query().Get("state")
@@ -159,6 +182,23 @@ func handleGoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	storage.InsertNewSubscriber(cr)
+}
+
+func handleMakeCampaign(w http.ResponseWriter, r *http.Request) {
+	var c Campaign
+	err := json.NewDecoder(r.Body).Decode(&c)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		return
+	}
+
+	link, err := c.Link()
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, NewServerResponseJSON(true, link, nil))
 }
 
 func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {

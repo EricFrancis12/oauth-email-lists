@@ -38,7 +38,6 @@ func (o OAuthDecEncoder) Encode(emailListID string, providerName ProviderName, o
 		o.secret,
 		strings.Join(parts, o.delim),
 	)
-
 }
 
 func (o OAuthDecEncoder) Decode(oauthID string) (emailListID string, provider OAuthProvider, outputIDs []string, err error) {
