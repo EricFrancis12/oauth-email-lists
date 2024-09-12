@@ -7,15 +7,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	listenAddr      string = ":6009"
-	postgresConnStr string = "user=postgres dbname=postgres password=CHANGE_ME sslmode=disable"
-)
-
 var (
 	config  = NewConfig()
 	decenc  *OAuthDecEncoder
-	storage = NewStorage(postgresConnStr)
+	storage *Storage
 )
 
 func main() {
@@ -25,16 +20,22 @@ func main() {
 
 	secret := os.Getenv(EnvCryptoSecret)
 	if !validSecret(secret) {
-		log.Fatalf("invalid environment variable %s", EnvCryptoSecret)
+		log.Fatalf("missing or invalid environment variable %s", EnvCryptoSecret)
 	}
 
 	decenc = NewOAuthDecEncoder(secret, oauthDecEncDelim)
 
+	postgresConnStr := os.Getenv(EnvPostgresConnStr)
+	if postgresConnStr == "" {
+		log.Fatalf("missing or invalid environment variable %s", EnvPostgresConnStr)
+	}
+
+	storage = NewStorage(postgresConnStr)
 	if err := storage.Init(); err != nil {
 		log.Fatal(err)
 	}
 
-	server := NewServer(listenAddr)
+	server := NewServer(mustFmtPort(os.Getenv(EnvPort)))
 	log.Fatal(server.Run())
 }
 
@@ -49,4 +50,14 @@ func SafeLoadEnvs(filenames ...string) error {
 		return nil
 	}
 	return godotenv.Load(validFilenames...)
+}
+
+func mustFmtPort(port string) string {
+	if port == "" {
+		panic("argument port is missing")
+	}
+	if string(port[0]) == ":" {
+		return port
+	}
+	return ":" + port
 }

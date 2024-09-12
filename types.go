@@ -157,7 +157,9 @@ const (
 	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"
 	EnvHostname            string = "HOST_NAME"
 	EnvJWTSecret           string = "JWT_SECRET"
+	EnvPort                string = "PORT"
 	EnvProtocol            string = "PROTOCOL"
+	EnvPostgresConnStr     string = "POSTGRES_CONN_STR"
 	EnvRootPassword        string = "ROOT_PASSWORD"
 	EnvRootUsername        string = "ROOT_USERNAME"
 )

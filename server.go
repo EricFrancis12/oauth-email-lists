@@ -60,7 +60,6 @@ func NewServerErrorFromStr(errMsg string) ServerError {
 	}
 }
 
-// TODO: add auth to server
 func (s *Server) Run() error {
 	router := mux.NewRouter()
 
