@@ -37,15 +37,53 @@ type UserUpdateReq struct {
 }
 
 type EmailList struct {
-	ID   string
-	Name string
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+	Name   string `json:"name"`
+}
+
+func NewEmailList(userID string, name string) *EmailList {
+	return &EmailList{
+		ID:     NewUUID(),
+		UserID: userID,
+		Name:   name,
+	}
+}
+
+type EmailListCreationReq struct {
+	UserID string `json:"userId"`
+	Name   string `json:"name"`
+}
+
+type EmailListUpdateReq struct {
+	Name string `json:"name"`
 }
 
 type Subscriber struct {
-	ID          string
-	EmailListID string
-	Name        string
-	EmailAddr   string
+	ID          string `json:"id"`
+	EmailListID string `json:"emailListId"`
+	Name        string `json:"name"`
+	EmailAddr   string `json:"emailAddr"`
+}
+
+func NewSubscriber(emailListID string, name string, emailAddr string) *Subscriber {
+	return &Subscriber{
+		ID:          NewUUID(),
+		EmailListID: emailListID,
+		Name:        name,
+		EmailAddr:   emailAddr,
+	}
+}
+
+type SubscriberCreationReq struct {
+	EmailListID string `json:"emailListId"`
+	Name        string `json:"name"`
+	EmailAddr   string `json:"emailAddr"`
+}
+
+type SubscriberUpdateReq struct {
+	Name      string `json:"name"`
+	EmailAddr string `json:"emailAddr"`
 }
 
 type CookieName string
@@ -61,9 +99,13 @@ const (
 	EnvCryptoSecret        string = "CRYPTO_SECRET"
 	EnvGoogleClientID      string = "GOOGLE_CLIENT_ID"
 	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"
+	EnvJWTSecret           string = "JWT_SECRET"
 )
 
-const HTTPHeaderContentType string = "Content-Type"
+const (
+	HTTPHeaderContentType string = "Content-Type"
+	HTTPHeaderJWTToken    string = "X-JWT-Token"
+)
 
 type ProviderName string
 

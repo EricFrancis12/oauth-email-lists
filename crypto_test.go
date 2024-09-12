@@ -57,9 +57,9 @@ func TestCrypto(t *testing.T) {
 		assert.NotEqual(t, string(providerName), encrypted)
 		assert.NotEqual(t, emailListID+de.delim+string(providerName), encrypted)
 
-		decEmailListID, decProviderName, err := de.Decode(encrypted)
+		decEmailListID, decProvider, err := de.Decode(encrypted)
 		assert.Nil(t, err)
 		assert.Equal(t, decEmailListID, emailListID)
-		assert.Equal(t, decProviderName, providerName)
+		assert.Equal(t, decProvider.Name(), providerName)
 	})
 }

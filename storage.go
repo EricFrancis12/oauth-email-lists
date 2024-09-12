@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const sqlDriverName string = "postgres"
@@ -51,17 +50,36 @@ func (s *Storage) Connect() error {
 	return nil
 }
 
+var initTablesQueries = []string{
+	`create table if not exists users (
+		id varchar(50) primary key,
+		name varchar(100),
+		hashed_password varchar(100),
+		created_at timestamp
+	)`,
+	`create table if not exists email_lists (
+		id varchar(50) primary key,
+		user_id varchar(50),
+		name varchar(100),
+		foreign key (user_id) references users(id)
+	)`,
+	`create table if not exists subscribers (
+		id varchar(50) primary key,
+		email_list_id varchar(50),
+		name varchar(100),
+		email_addr varchar(200),
+		foreign key (email_list_id) references email_lists(id)
+	)`,
+}
+
 func (s *Storage) initTables() error {
-	query := `
-		create table if not exists users (
-			id varchar(50) primary key,
-			name varchar(100),
-			hashed_password varchar(100),
-			created_at timestamp
-		)
-	`
-	_, err := s.db.Exec(query)
-	return err
+	for _, query := range initTablesQueries {
+		_, err := s.db.Exec(query)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Storage) InsertNewUser(cr UserCreationReq) (*User, error) {
@@ -119,6 +137,22 @@ func (s *Storage) GetUserByID(id string) (*User, error) {
 	return nil, fmt.Errorf("user %s not found", id)
 }
 
+func (s *Storage) GetUserByUsernameAndPassword(username string, password string) (*User, error) {
+	hashedPassword, err := hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.Query("select * from users where name = $1, hashed_password = $2", username, hashedPassword)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoUser(rows)
+	}
+	return nil, fmt.Errorf("user not found")
+}
+
 func (s *Storage) UpdateUserByID(id string, ur UserUpdateReq) error {
 	query := "update users set "
 	args := []interface{}{}
@@ -157,21 +191,149 @@ func (s *Storage) DeleteUserByID(id string) error {
 }
 
 func scanIntoUser(rows *sql.Rows) (*User, error) {
-	account := new(User)
+	user := new(User)
 	err := rows.Scan(
-		&account.ID,
-		&account.Name,
-		&account.HashedPassword,
-		&account.CreatedAt,
+		&user.ID,
+		&user.Name,
+		&user.HashedPassword,
+		&user.CreatedAt,
 	)
-
-	return account, err
+	return user, err
 }
 
-func hashPassword(password string) (string, error) {
-	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+func (s *Storage) InsertNewEmailList(cr EmailListCreationReq) (*EmailList, error) {
+	emailList := NewEmailList(cr.UserID, cr.Name)
+
+	query := `
+		insert into email_lists
+		(id, user_id, name)
+		values
+		($1, $2, $3)
+	`
+	if _, err := s.db.Query(
+		query,
+		emailList.ID,
+		emailList.UserID,
+		emailList.Name,
+	); err != nil {
+		return nil, err
 	}
-	return string(b), nil
+
+	return emailList, nil
+}
+
+func (s *Storage) GetAllEmailLists() ([]*EmailList, error) {
+	rows, err := s.db.Query("select * from email_lists")
+	if err != nil {
+		return nil, err
+	}
+
+	emailLists := []*EmailList{}
+	for rows.Next() {
+		emailList, err := scanIntoEmailList(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		emailLists = append(emailLists, emailList)
+	}
+
+	return emailLists, nil
+}
+
+func (s *Storage) GetEmailListByID(id string) (*EmailList, error) {
+	rows, err := s.db.Query("select * from email_lists where id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoEmailList(rows)
+	}
+	return nil, fmt.Errorf("email list %s not found", id)
+}
+
+func (s *Storage) UpdateEmailListByID(id string, ur EmailListUpdateReq) error {
+	query := "update email_lists set "
+	args := []interface{}{}
+
+	if ur.Name != "" {
+		query += "name = $1"
+		args = append(args, ur.Name)
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("no update fields specified")
+	}
+
+	query += " where id = $" + fmt.Sprintf("%d", len(args)+1)
+	args = append(args, id)
+
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+func (s *Storage) DeleteEmailListByID(id string) error {
+	_, err := s.db.Query("delete from email_lists where id = $1", id)
+	return err
+}
+
+func scanIntoEmailList(rows *sql.Rows) (*EmailList, error) {
+	emailList := new(EmailList)
+	err := rows.Scan(
+		&emailList.ID,
+		&emailList.UserID,
+		&emailList.Name,
+	)
+	return emailList, err
+}
+
+func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, error) {
+	subscriber := NewSubscriber(cr.EmailListID, cr.Name, cr.EmailAddr)
+
+	query := `
+		insert into subscribers
+		(id, email_list_id, name, email_addr)
+		values
+		($1, $2, $3, $4)
+	`
+	if _, err := s.db.Query(
+		query,
+		subscriber.ID,
+		subscriber.EmailListID,
+		subscriber.Name,
+		subscriber.EmailAddr,
+	); err != nil {
+		return nil, err
+	}
+
+	return subscriber, nil
+}
+func (s *Storage) GetAllSubscribers() ([]*Subscriber, error) {
+	rows, err := s.db.Query("select * from subscribers")
+	if err != nil {
+		return nil, err
+	}
+
+	subscribers := []*Subscriber{}
+	for rows.Next() {
+		subscriber, err := scanIntoSubscriber(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		subscribers = append(subscribers, subscriber)
+	}
+
+	return subscribers, nil
+}
+
+func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
+	subscriber := new(Subscriber)
+	err := rows.Scan(
+		&subscriber.ID,
+		&subscriber.EmailListID,
+		&subscriber.Name,
+		&subscriber.EmailAddr,
+	)
+	return subscriber, err
 }
