@@ -93,6 +93,11 @@ func (s *Storage) initTables() error {
 }
 
 func (s *Storage) InsertNewUser(cr UserCreationReq) (*User, error) {
+	ok, err := validPassword(cr.Password)
+	if !ok || err != nil {
+		return nil, err
+	}
+
 	user, err := NewUser(cr.Name, cr.Password)
 	if err != nil {
 		return nil, err

@@ -113,13 +113,22 @@ func validateJWT(tokenStr string) (*jwt.Token, error) {
 	})
 }
 
-// TODO: add more constraints to password (length, etc...)
 func hashPassword(password string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func validPassword(password string) (bool, error) {
+	if len(password) < MinPasswordLength {
+		return false, fmt.Errorf("password should be at least %d characters long", MinPasswordLength)
+	}
+	if len(password) > MaxPasswordLength {
+		return false, fmt.Errorf("password should be at most %d characters long", MaxPasswordLength)
+	}
+	return true, nil
 }
 
 func unauthorizedError() error {

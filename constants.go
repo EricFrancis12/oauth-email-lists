@@ -1,7 +1,12 @@
 package main
 
-const filePathEnv string = ".env"
+const filePathEnv = ".env"
 
-const jwtExpiry int = 15000
+const jwtExpiry = 15000
 
-const rootUserID string = "-1"
+const (
+	MinPasswordLength = 8
+	MaxPasswordLength = 20
+)
+
+const rootUserID = "-1"
