@@ -1,16 +1,20 @@
 package main
 
-func makeOutput(id string, outputName OutputName, apiKey string, listID string) Output {
+import "fmt"
+
+func makeOutput(id string, userID string, outputName OutputName, apiKey string, listID string) Output {
 	switch outputName {
 	case OutputNameAWeber:
 		return AWeberOutput{
 			ID:     id,
+			UserID: userID,
 			ApiKey: apiKey,
 			ListID: listID,
 		}
 	case OutputNameResend:
 		return ResendOutput{
 			ID:     id,
+			UserID: userID,
 			ApiKey: apiKey,
 			ListID: listID,
 		}
@@ -24,6 +28,7 @@ func (ao AWeberOutput) OutputName() OutputName {
 
 func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 	// TODO: ...
+	fmt.Println("~ AWeberOutput.Handle() called")
 	return nil
 }
 
@@ -33,5 +38,6 @@ func (ro ResendOutput) OutputName() OutputName {
 
 func (ro ResendOutput) Handle(emailAddr string, name string) error {
 	// TODO: ...
+	fmt.Println("~ ResendOutput.Handle() called")
 	return nil
 }

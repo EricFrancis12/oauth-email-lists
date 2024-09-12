@@ -53,7 +53,7 @@ func (s *Storage) Connect() error {
 var initTablesQueries = []string{
 	`create table if not exists users (
 		id varchar(50) primary key,
-		name varchar(100),
+		name varchar(100) unique,
 		hashed_password varchar(100),
 		created_at timestamp
 	)`,
@@ -66,15 +66,19 @@ var initTablesQueries = []string{
 	`create table if not exists subscribers (
 		id varchar(50) primary key,
 		email_list_id varchar(50),
+		user_id varchar(50),
 		name varchar(100),
-		email_addr varchar(200),
-		foreign key (email_list_id) references email_lists(id)
+		email_addr varchar(150) unique,
+		foreign key (email_list_id) references email_lists(id),
+		foreign key (user_id) references users(id)
 	)`,
 	`create table if not exists outputs (
 		id varchar(50) primary key,
+		user_id varchar(50),
 		output_name varchar(30),
 		api_key varchar(100),
-		list_id varchar(100)
+		list_id varchar(100),
+		foreign key (user_id) references users(id)
 	)`,
 }
 
@@ -92,6 +96,11 @@ func (s *Storage) InsertNewUser(cr UserCreationReq) (*User, error) {
 	user, err := NewUser(cr.Name, cr.Password)
 	if err != nil {
 		return nil, err
+	}
+
+	// Preventing root user creds being saved in db
+	if IsRootUser(user) {
+		return nil, fmt.Errorf("error creating user")
 	}
 
 	query := `
@@ -247,6 +256,25 @@ func (s *Storage) GetAllEmailLists() ([]*EmailList, error) {
 	return emailLists, nil
 }
 
+func (s *Storage) GetAllEmailListsByUserID(userID string) ([]*EmailList, error) {
+	rows, err := s.db.Query("select * from email_lists where user_id = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+
+	emailLists := []*EmailList{}
+	for rows.Next() {
+		emailList, err := scanIntoEmailList(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		emailLists = append(emailLists, emailList)
+	}
+
+	return emailLists, nil
+}
+
 func (s *Storage) GetEmailListByID(id string) (*EmailList, error) {
 	rows, err := s.db.Query("select * from email_lists where id = $1", id)
 	if err != nil {
@@ -294,18 +322,19 @@ func scanIntoEmailList(rows *sql.Rows) (*EmailList, error) {
 }
 
 func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, error) {
-	subscriber := NewSubscriber(cr.EmailListID, cr.Name, cr.EmailAddr)
+	subscriber := NewSubscriber(cr.EmailListID, cr.UserID, cr.Name, cr.EmailAddr)
 
 	query := `
 		insert into subscribers
-		(id, email_list_id, name, email_addr)
+		(id, email_list_id, user_id, name, email_addr)
 		values
-		($1, $2, $3, $4)
+		($1, $2, $3, $4, $5)
 	`
 	if _, err := s.db.Query(
 		query,
 		subscriber.ID,
 		subscriber.EmailListID,
+		subscriber.UserID,
 		subscriber.Name,
 		subscriber.EmailAddr,
 	); err != nil {
@@ -314,8 +343,28 @@ func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, er
 
 	return subscriber, nil
 }
+
 func (s *Storage) GetAllSubscribers() ([]*Subscriber, error) {
 	rows, err := s.db.Query("select * from subscribers")
+	if err != nil {
+		return nil, err
+	}
+
+	subscribers := []*Subscriber{}
+	for rows.Next() {
+		subscriber, err := scanIntoSubscriber(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		subscribers = append(subscribers, subscriber)
+	}
+
+	return subscribers, nil
+}
+
+func (s *Storage) GetAllSubscribersByUserID(userID string) ([]*Subscriber, error) {
+	rows, err := s.db.Query("select * from subscribers where user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +387,7 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 	err := rows.Scan(
 		&subscriber.ID,
 		&subscriber.EmailListID,
+		&subscriber.UserID,
 		&subscriber.Name,
 		&subscriber.EmailAddr,
 	)
@@ -346,17 +396,18 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 
 func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 	id := NewUUID()
-	output := makeOutput(id, cr.OutputName, cr.ApiKey, cr.ListID)
+	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ApiKey, cr.ListID)
 
 	query := `
 		insert into outputs
-		(id, output_name, api_key, list_id)
+		(id, user_id, output_name, api_key, list_id)
 		values
-		($1, $2, $3, $4)
+		($1, $2, $3, $4, $5)
 	`
 	if _, err := s.db.Query(
 		query,
 		id,
+		cr.UserID,
 		output.OutputName(),
 		cr.ApiKey,
 		cr.ListID,
@@ -385,6 +436,24 @@ func (s *Storage) GetAllOutputs() ([]Output, error) {
 	return outputs, nil
 }
 
+func (s *Storage) GetAllOutputsByUserID(userID string) ([]Output, error) {
+	outputs := []Output{}
+	rows, err := s.db.Query("select * from outputs where user_id = $1", userID)
+	if err != nil {
+		return outputs, err
+	}
+
+	for rows.Next() {
+		output, err := scanIntoOutput(rows)
+		if err != nil {
+			return nil, err
+		}
+		outputs = append(outputs, output)
+	}
+
+	return outputs, nil
+}
+
 func (s *Storage) GetOutputByID(id string) (Output, error) {
 	rows, err := s.db.Query("select * from outputs where id = $1", id)
 	if err != nil {
@@ -394,12 +463,23 @@ func (s *Storage) GetOutputByID(id string) (Output, error) {
 		return scanIntoOutput(rows)
 	}
 	return nil, fmt.Errorf("output %s not found", id)
+}
 
+func (s *Storage) GetOutputByIDAndUserID(id string, userID string) (Output, error) {
+	rows, err := s.db.Query("select * from outputs where id = $1 and user_id = $2", id, userID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoOutput(rows)
+	}
+	return nil, fmt.Errorf("output %s not found", id)
 }
 
 func scanIntoOutput(rows *sql.Rows) (Output, error) {
 	var (
 		id         string
+		userID     string
 		outputName OutputName
 		apiKey     string
 		listID     string
@@ -407,6 +487,7 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 
 	err := rows.Scan(
 		&id,
+		&userID,
 		&outputName,
 		&apiKey,
 		&listID,
@@ -415,5 +496,5 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		return nil, err
 	}
 
-	return makeOutput(id, outputName, apiKey, listID), nil
+	return makeOutput(id, userID, outputName, apiKey, listID), nil
 }

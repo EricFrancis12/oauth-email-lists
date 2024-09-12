@@ -97,7 +97,7 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 		return nil, err
 	}
 
-	oidc, err := r.Cookie(string(CookieNameEmailListID))
+	oidc, err := r.Cookie(string(CookieNameOutputIDs))
 	if err != nil {
 		return nil, err
 	}

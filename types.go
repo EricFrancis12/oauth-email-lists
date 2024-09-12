@@ -60,6 +60,7 @@ type Output interface {
 }
 
 type OutputCreationReq struct {
+	UserID     string     `json:"userId"`
 	OutputName OutputName `json:"outputName"`
 	ApiKey     string     `json:"apiKey"`
 	ListID     string     `json:"listId"`
@@ -67,12 +68,14 @@ type OutputCreationReq struct {
 
 type AWeberOutput struct {
 	ID     string `json:"id"`
+	UserID string `json:"userId"`
 	ApiKey string `json:"apiKey"`
 	ListID string `json:"listId"`
 }
 
 type ResendOutput struct {
 	ID     string `json:"id"`
+	UserID string `json:"userId"`
 	ApiKey string `json:"apiKey"`
 	ListID string `json:"listId"`
 }
@@ -80,14 +83,16 @@ type ResendOutput struct {
 type Subscriber struct {
 	ID          string `json:"id"`
 	EmailListID string `json:"emailListId"`
+	UserID      string `json:"userId"`
 	Name        string `json:"name"`
 	EmailAddr   string `json:"emailAddr"`
 }
 
-func NewSubscriber(emailListID string, name string, emailAddr string) *Subscriber {
+func NewSubscriber(emailListID string, userID string, name string, emailAddr string) *Subscriber {
 	return &Subscriber{
 		ID:          NewUUID(),
 		EmailListID: emailListID,
+		UserID:      userID,
 		Name:        name,
 		EmailAddr:   emailAddr,
 	}
@@ -95,6 +100,7 @@ func NewSubscriber(emailListID string, name string, emailAddr string) *Subscribe
 
 type SubscriberCreationReq struct {
 	EmailListID string `json:"emailListId"`
+	UserID      string `json:"userId"`
 	Name        string `json:"name"`
 	EmailAddr   string `json:"emailAddr"`
 }
@@ -152,6 +158,8 @@ const (
 	EnvHostname            string = "HOST_NAME"
 	EnvJWTSecret           string = "JWT_SECRET"
 	EnvProtocol            string = "PROTOCOL"
+	EnvRootPassword        string = "ROOT_PASSWORD"
+	EnvRootUsername        string = "ROOT_USERNAME"
 )
 
 const (

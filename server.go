@@ -60,35 +60,36 @@ func NewServerErrorFromStr(errMsg string) ServerError {
 	}
 }
 
-func (a *Server) Run() error {
+// TODO: add auth to server
+func (s *Server) Run() error {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hi"))
 	})
 
-	router.HandleFunc("/c", handleMakeCampaign).Methods(http.MethodPost)
+	router.HandleFunc("/c", Auth(handleMakeCampaign)).Methods(http.MethodPost)
 	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
 
 	router.HandleFunc("/t/google/{emailListID}", handleGoogleCampaign).Methods(http.MethodGet)
 	router.HandleFunc("/callback/google", handleGoogleCampaignCallback).Methods(http.MethodGet)
 
-	router.HandleFunc("/users", handleInsertNewUser).Methods(http.MethodPost)
-	router.HandleFunc("/users", handleGetAllUsers).Methods(http.MethodGet)
-	router.HandleFunc("/users/{userID}", handleGetUserByID).Methods(http.MethodGet)
-	router.HandleFunc("/users/{userID}", handleUpdateUserByID).Methods(http.MethodPatch)
-	router.HandleFunc("/users/{userID}", handleDeleteUserByID).Methods(http.MethodDelete)
+	router.HandleFunc("/users", RootAuth(handleInsertNewUser)).Methods(http.MethodPost)
+	router.HandleFunc("/users", RootAuth(handleGetAllUsers)).Methods(http.MethodGet)
+	router.HandleFunc("/users/{userID}", RootAuth(handleGetUserByID)).Methods(http.MethodGet)
+	router.HandleFunc("/users/{userID}", RootAuth(handleUpdateUserByID)).Methods(http.MethodPatch)
+	router.HandleFunc("/users/{userID}", RootAuth(handleDeleteUserByID)).Methods(http.MethodDelete)
 
-	router.HandleFunc("/email-lists", handleInsertNewEmailList).Methods(http.MethodPost)
-	router.HandleFunc("/email-lists", handleGetAllEmailLists).Methods(http.MethodGet)
+	router.HandleFunc("/email-lists", handleInsertNewEmailListByUserID).Methods(http.MethodPost)
+	router.HandleFunc("/email-lists", handleGetAllEmailListsByUserID).Methods(http.MethodGet)
 
-	router.HandleFunc("/subscribers", handleGetAllSubscribers).Methods(http.MethodGet)
+	router.HandleFunc("/subscribers", handleGetAllSubscribersByUserID).Methods(http.MethodGet)
 
-	router.HandleFunc("/outputs", handleInsertNewOutput).Methods(http.MethodPost)
-	router.HandleFunc("/outputs", handleGetAllOutputs).Methods(http.MethodGet)
-	router.HandleFunc("/outputs/{outputID}", handleGetOutputByID).Methods(http.MethodGet)
+	router.HandleFunc("/outputs", handleInsertNewOutputByUserID).Methods(http.MethodPost)
+	router.HandleFunc("/outputs", handleGetAllOutputsByUserID).Methods(http.MethodGet)
+	router.HandleFunc("/outputs/{outputID}", handleGetOutputByIDAndUserID).Methods(http.MethodGet)
 
-	listenAddr := FallbackIfEmpty(a.ListenAddr, defaultListenAddr)
+	listenAddr := FallbackIfEmpty(s.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
 }
@@ -101,7 +102,7 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// oauthID can be decoded to get the emailListID, providerName, and outputNames
+	// oauthID can be decoded to get the emailListID, providerName, and outputIDs
 	emailListID, provider, outputIDs, err := decenc.Decode(oauthID)
 	if err != nil {
 		RedirectToCatchAllUrl(w, r)
@@ -165,9 +166,15 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	emailList, err := storage.GetEmailListByID(pc.EmailListID)
+	if err != nil {
+		return
+	}
+	userID := emailList.UserID
+
 	go func() {
 		for _, outputID := range pc.OutputIDs {
-			output, err := storage.GetOutputByID(outputID)
+			output, err := storage.GetOutputByIDAndUserID(outputID, userID)
 			if err != nil {
 				continue
 			}
@@ -177,6 +184,7 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 
 	cr := SubscriberCreationReq{
 		EmailListID: pc.EmailListID,
+		UserID:      userID,
 		Name:        gpr.Name,
 		EmailAddr:   gpr.Email,
 	}
@@ -280,12 +288,20 @@ func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, struct{}{})
 }
 
-func handleInsertNewEmailList(w http.ResponseWriter, r *http.Request) {
-	var cr EmailListCreationReq
-	err := json.NewDecoder(r.Body).Decode(&cr)
+func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
+	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	var cr EmailListCreationReq
+	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
+	}
+	if !IsRootUser(user) {
+		cr.UserID = user.ID
 	}
 
 	emailList, err := storage.InsertNewEmailList(cr)
@@ -297,17 +313,48 @@ func handleInsertNewEmailList(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, emailList)
 }
 
-func handleGetAllEmailLists(w http.ResponseWriter, _ *http.Request) {
-	emailLists, err := storage.GetAllEmailLists()
+func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
+	var (
+		emailLists []*EmailList
+		err        error
+	)
+
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	if IsRootUser(user) {
+		emailLists, err = storage.GetAllEmailLists()
+	} else {
+		emailLists, err = storage.GetAllEmailListsByUserID(user.ID)
+	}
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
 	}
+
 	WriteJSON(w, http.StatusOK, emailLists)
 }
 
-func handleGetAllSubscribers(w http.ResponseWriter, _ *http.Request) {
-	subscribers, err := storage.GetAllSubscribers()
+func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
+	var (
+		subscribers []*Subscriber
+		err         error
+	)
+
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	if IsRootUser(user) {
+		subscribers, err = storage.GetAllSubscribers()
+	} else {
+		subscribers, err = storage.GetAllSubscribersByUserID(user.ID)
+	}
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
@@ -316,12 +363,20 @@ func handleGetAllSubscribers(w http.ResponseWriter, _ *http.Request) {
 	WriteJSON(w, http.StatusOK, subscribers)
 }
 
-func handleInsertNewOutput(w http.ResponseWriter, r *http.Request) {
-	var cr OutputCreationReq
-	err := json.NewDecoder(r.Body).Decode(&cr)
+func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
+	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	var cr OutputCreationReq
+	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
 		WriteJSON(w, http.StatusInternalServerError, NewServerError(err))
 		return
+	}
+	if !IsRootUser(user) {
+		cr.UserID = user.ID
 	}
 
 	output, err := storage.InsertNewOutput(cr)
@@ -333,8 +388,23 @@ func handleInsertNewOutput(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, output)
 }
 
-func handleGetAllOutputs(w http.ResponseWriter, r *http.Request) {
-	outputs, err := storage.GetAllOutputs()
+func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
+	var (
+		outputs []Output
+		err     error
+	)
+
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	if IsRootUser(user) {
+		outputs, err = storage.GetAllOutputs()
+	} else {
+		outputs, err = storage.GetAllOutputsByUserID(user.ID)
+	}
 	if err != nil {
 		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
 		return
@@ -342,14 +412,29 @@ func handleGetAllOutputs(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, outputs)
 }
 
-func handleGetOutputByID(w http.ResponseWriter, r *http.Request) {
+func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
+	var (
+		output Output
+		err    error
+	)
+
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
 	outputID := mux.Vars(r)["outputID"]
 	if outputID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
 		return
 	}
 
-	output, err := storage.GetOutputByID(outputID)
+	if IsRootUser(user) {
+		output, err = storage.GetOutputByID(outputID)
+	} else {
+		output, err = storage.GetOutputByIDAndUserID(outputID, user.ID)
+	}
 	if err != nil {
 		WriteJSON(w, http.StatusBadRequest, NewServerErrorFromStr("output ID not provided"))
 		return
