@@ -87,19 +87,22 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// oauthID can be decoded to get the emailListID, providerName, and outputIDs
-	emailListID, provider, outputIDs, err := decenc.Decode(oauthID)
+	emailListID, provider, outputIDs, redirectUrl, err := decenc.Decode(oauthID)
 	if err != nil {
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
 
-	NewProviderCookie(emailListID, provider.Name(), outputIDs).Set(w)
+	NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl).Set(w)
 
 	provider.Redirect(w, r)
 }
 
 func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
-	outputIDs := r.URL.Query()["o"]
+	var (
+		outputIDs   = r.URL.Query()["o"]
+		redirectUrl = r.URL.Query().Get("r")
+	)
 
 	emailListID := mux.Vars(r)["emailListID"]
 	if emailListID == "" {
@@ -108,17 +111,13 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider := NewOAuthProvider(ProviderNameGoogle)
-	NewProviderCookie(emailListID, provider.Name(), outputIDs).Set(w)
+	NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl).Set(w)
 	provider.Redirect(w, r)
 }
 
 var googleOAuthStateString = uuid.NewString()
 
 func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
-	// TODO: add ability to speficy redirect url at the campaign level,
-	// and store it via cookie to be retrieved here
-	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
-
 	state := r.URL.Query().Get("state")
 	if state != googleOAuthStateString {
 		return
@@ -154,6 +153,8 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go RedirectVisitor(w, r, pc.RedirectUrl)
+
 	emailList, err := storage.GetEmailListByID(pc.EmailListID)
 	if err != nil {
 		return
@@ -176,7 +177,6 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		Name:        gpr.Name,
 		EmailAddr:   gpr.Email,
 	}
-
 	storage.InsertNewSubscriber(cr)
 }
 

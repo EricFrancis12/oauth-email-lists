@@ -11,14 +11,10 @@ type Campaign struct {
 	EmailListID  string       `json:"emailListId"`
 	ProviderName ProviderName `json:"providerName"`
 	OutputIDs    []string     `json:"outputIds"`
+	RedirectUrl  string       `json:"redirectUrl"`
 }
 
 func (c Campaign) Link() (string, error) {
-	oauthID, err := decenc.Encode(c.EmailListID, c.ProviderName, c.OutputIDs)
-	if err != nil {
-		return "", err
-	}
-
 	var (
 		protocol = os.Getenv(EnvProtocol)
 		hostname = os.Getenv(EnvHostname)
@@ -26,6 +22,11 @@ func (c Campaign) Link() (string, error) {
 
 	if protocol == "" || hostname == "" {
 		return "", fmt.Errorf("environment variables %s and %s are required", EnvProtocol, EnvHostname)
+	}
+
+	oauthID, err := decenc.Encode(c.EmailListID, c.ProviderName, c.OutputIDs, c.RedirectUrl)
+	if err != nil {
+		return "", err
 	}
 
 	return fmt.Sprintf("%s//%s/c?c=%s", protocol, hostname, url.QueryEscape(oauthID)), nil
@@ -148,6 +149,7 @@ const (
 	CookieNameEmailListID  CookieName = "emailListId"
 	CookieNameOutputIDs    CookieName = "outputIds"
 	CookieNameProviderName CookieName = "providerName"
+	CookieNameRedirectURL  CookieName = "redirectUrl"
 )
 
 const (

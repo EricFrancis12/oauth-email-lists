@@ -70,14 +70,16 @@ type ProviderCookie struct {
 	EmailListID  string
 	ProviderName ProviderName
 	OutputIDs    []string
+	RedirectUrl  string
 	CreatedAt    time.Time
 }
 
-func NewProviderCookie(emailListID string, providerName ProviderName, outputIDs []string) *ProviderCookie {
+func NewProviderCookie(emailListID string, providerName ProviderName, outputIDs []string, redirectUrl string) *ProviderCookie {
 	return &ProviderCookie{
 		EmailListID:  emailListID,
 		ProviderName: providerName,
 		OutputIDs:    outputIDs,
+		RedirectUrl:  redirectUrl,
 		CreatedAt:    time.Now(),
 	}
 }
@@ -103,6 +105,11 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 	}
 	outputIDs := strings.Split(oidc.Value, outputCookieDelim)
 
+	rurlc, err := r.Cookie(string(CookieNameRedirectURL))
+	if err != nil {
+		return nil, err
+	}
+
 	cac, err := r.Cookie(string(CookieNameCreatedAt))
 	if err != nil {
 		return nil, err
@@ -116,13 +123,16 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 		EmailListID:  elidc.Value,
 		ProviderName: providerName,
 		OutputIDs:    outputIDs,
+		RedirectUrl:  rurlc.Value,
 		CreatedAt:    createdAt,
 	}, nil
 }
 
+// TODO: determine if cookies need to be encoded
 func (pc ProviderCookie) Set(w http.ResponseWriter) {
 	setCookie(w, CookieNameEmailListID, pc.EmailListID)
 	setCookie(w, CookieNameProviderName, string(pc.ProviderName))
 	setCookie(w, CookieNameOutputIDs, strings.Join(pc.OutputIDs, outputCookieDelim))
+	setCookie(w, CookieNameRedirectURL, pc.RedirectUrl)
 	setCookie(w, CookieNameCreatedAt, pc.CreatedAt.Format(timestampFormat))
 }

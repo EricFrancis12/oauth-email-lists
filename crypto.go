@@ -1,20 +1,16 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
-	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 )
 
-const oauthDecEncDelim string = "%"
+const oauthDecEncDelim string = "%&%&%&"
 
 type OAuthDecEncoder struct {
 	secret string
@@ -28,11 +24,17 @@ func NewOAuthDecEncoder(secret string, delim string) *OAuthDecEncoder {
 	}
 }
 
-func (o OAuthDecEncoder) Encode(emailListID string, providerName ProviderName, outputIDs []string) (oauthID string, err error) {
+func (o OAuthDecEncoder) Encode(
+	emailListID string,
+	providerName ProviderName,
+	outputIDs []string,
+	redirectUrl string,
+) (oauthID string, err error) {
 	var parts = []string{
 		encodePart(emailListID),
 		encodePart(string(providerName)),
 		encodePart(strings.Join(outputIDs, outputCookieDelim)),
+		encodePart(redirectUrl),
 	}
 	return Encrypt(
 		o.secret,
@@ -40,88 +42,86 @@ func (o OAuthDecEncoder) Encode(emailListID string, providerName ProviderName, o
 	)
 }
 
-func (o OAuthDecEncoder) Decode(oauthID string) (emailListID string, provider OAuthProvider, outputIDs []string, err error) {
+func (o OAuthDecEncoder) Decode(oauthID string) (
+	emailListID string,
+	provider OAuthProvider,
+	outputIDs []string,
+	redirectUrl string,
+	err error,
+) {
 	str, err := Decrypt(o.secret, oauthID)
 	if err != nil {
-		return "", nil, []string{}, err
+		return "", nil, []string{}, "", err
 	}
 
 	parts := strings.Split(str, o.delim)
-	if len(parts) < 2 {
-		return "", nil, []string{}, invalidOauthID()
+	if len(parts) < 4 {
+		return "", nil, []string{}, "", invalidOauthID()
 	}
 
 	if emailListID, err = decodePart(parts[0]); err != nil {
-		return "", nil, []string{}, invalidOauthID()
+		return "", nil, []string{}, "", invalidOauthID()
 	}
 
 	s, err := decodePart(parts[1])
 	if err != nil {
-		return "", nil, []string{}, invalidOauthID()
+		return "", nil, []string{}, "", invalidOauthID()
 	}
 	pn, err := ToProviderName(s)
 	if err != nil {
-		return "", nil, []string{}, invalidOauthID()
+		return "", nil, []string{}, "", invalidOauthID()
 	}
 	provider = NewOAuthProvider(pn)
 
 	outputIDStr, err := decodePart(parts[2])
-
 	if err != nil {
-		return "", nil, []string{}, invalidOauthID()
+		return "", nil, []string{}, "", invalidOauthID()
 	}
 	outputIDs = strings.Split(outputIDStr, outputCookieDelim)
 
-	return emailListID, provider, outputIDs, nil
+	if redirectUrl, err = decodePart(parts[3]); err != nil {
+		return "", nil, []string{}, "", invalidOauthID()
+	}
+
+	return emailListID, provider, outputIDs, redirectUrl, nil
 }
 
 func Encrypt(secret, value string) (string, error) {
-	block, err := aes.NewCipher([]byte(secret))
+	claims := jwt.MapClaims{
+		"data": value,
+		"exp":  time.Now().Add(time.Hour * 1).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("signing token: %w", err)
 	}
 
-	plainText := []byte(value)
-
-	// The IV needs to be unique, but not secure. Therefore it's common to
-	// include it at the beginning of the ciphertext.
-	ciphertext := make([]byte, aes.BlockSize+len(plainText))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", err
-	}
-
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], plainText)
-
-	return base64.RawStdEncoding.EncodeToString(ciphertext), nil
+	return signedToken, nil
 }
 
-func Decrypt(secret, value string) (string, error) {
-	ciphertext, err := base64.RawStdEncoding.DecodeString(value)
+func Decrypt(secret, tokenString string) (string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
 	if err != nil {
-		return "", fmt.Errorf("decoding base64: %w", err)
+		return "", fmt.Errorf("parsing token: %w", err)
 	}
 
-	block, err := aes.NewCipher([]byte(secret))
-	if err != nil {
-		return "", err
+	// Extract claims from the token
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if value, ok := claims["data"].(string); ok {
+			return value, nil
+		}
+		return "", fmt.Errorf("value not found in claims")
 	}
 
-	// The IV needs to be unique, but not secure. Therefore it's common to
-	// include it at the beginning of the ciphertext.
-	if len(ciphertext) < aes.BlockSize {
-		return "", errors.New("ciphertext too short")
-	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
-
-	stream := cipher.NewCFBDecrypter(block, iv)
-
-	// XORKeyStream can work in-place if the two arguments are the same.
-	stream.XORKeyStream(ciphertext, ciphertext)
-
-	return string(ciphertext), nil
+	return "", fmt.Errorf("invalid token")
 }
 
 func encodePart(part string) string {
@@ -137,11 +137,17 @@ func validSecret(secret string) bool {
 }
 
 func validDelim(delim string) bool {
+	if len(delim) < MinDelimLength {
+		return false
+	}
+
 	for _, char := range delim {
-		if encodePart(string(char)) == string(char) {
+		equalBeforeAndAfterEncode := encodePart(string(char)) == string(char)
+		if equalBeforeAndAfterEncode {
 			return false
 		}
 	}
+
 	return true
 }
 
