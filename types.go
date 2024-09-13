@@ -75,10 +75,10 @@ type AWeberOutput struct {
 }
 
 type ResendOutput struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-	ApiKey string `json:"apiKey"`
-	ListID string `json:"listId"`
+	ID         string `json:"id"`
+	UserID     string `json:"userId"`
+	ApiKey     string `json:"apiKey"`
+	AudienceID string `json:"audienceId"`
 }
 
 type Subscriber struct {

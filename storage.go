@@ -50,6 +50,7 @@ func (s *Storage) Connect() error {
 	return nil
 }
 
+// TODO: add createdAt and updatedAt fields to all models in db
 var initTablesQueries = []string{
 	`create table if not exists users (
 		id varchar(50) primary key,
@@ -63,6 +64,7 @@ var initTablesQueries = []string{
 		name varchar(100),
 		foreign key (user_id) references users(id)
 	)`,
+	// TODO: add source field to subscriber model
 	`create table if not exists subscribers (
 		id varchar(50) primary key,
 		email_list_id varchar(50),
@@ -103,7 +105,7 @@ func (s *Storage) InsertNewUser(cr UserCreationReq) (*User, error) {
 		return nil, err
 	}
 
-	// Preventing root user creds being saved in db
+	// Preventing root user creds from being saved in db
 	if IsRootUser(user) {
 		return nil, fmt.Errorf("error creating user")
 	}
