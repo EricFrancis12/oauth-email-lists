@@ -66,16 +66,14 @@ func (s *Server) Run() error {
 	router.HandleFunc("/outputs", handleGetAllOutputsByUserID).Methods(http.MethodGet)
 	router.HandleFunc("/outputs/{outputID}", handleGetOutputByIDAndUserID).Methods(http.MethodGet)
 
+	router.HandleFunc("/healthz", handleHealthz)
+
 	router.HandleFunc("/", handleCatchAll)
 	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
 
 	listenAddr := FallbackIfEmpty(s.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
-}
-
-func handleCatchAll(w http.ResponseWriter, r *http.Request) {
-	RedirectToCatchAllUrl(w, r)
 }
 
 func handleCampaign(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +91,11 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl).Set(w)
+	pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
+	if err := pc.Set(w); err != nil {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
 
 	provider.Redirect(w, r)
 }
@@ -111,7 +113,13 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider := NewOAuthProvider(ProviderNameGoogle)
-	NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl).Set(w)
+
+	pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
+	if err := pc.Set(w); err != nil {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
 	provider.Redirect(w, r)
 }
 
@@ -431,8 +439,12 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, output)
 }
 
-func WriteUnauthorized(w http.ResponseWriter) error {
-	return WriteJSON(w, http.StatusUnauthorized, NewJsonResponse(false, nil, unauthorized()))
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	WriteJSON(w, http.StatusOK, struct{}{})
+}
+
+func handleCatchAll(w http.ResponseWriter, r *http.Request) {
+	RedirectToCatchAllUrl(w, r)
 }
 
 func userIDNotProvided() error {

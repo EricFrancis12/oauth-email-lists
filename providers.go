@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -64,75 +63,4 @@ func (gpr GoogleProviderResult) ToSubscriber(emailListID string) Subscriber {
 		Name:        gpr.Name,
 		EmailAddr:   gpr.Email,
 	}
-}
-
-type ProviderCookie struct {
-	EmailListID  string
-	ProviderName ProviderName
-	OutputIDs    []string
-	RedirectUrl  string
-	CreatedAt    time.Time
-}
-
-func NewProviderCookie(emailListID string, providerName ProviderName, outputIDs []string, redirectUrl string) *ProviderCookie {
-	return &ProviderCookie{
-		EmailListID:  emailListID,
-		ProviderName: providerName,
-		OutputIDs:    outputIDs,
-		RedirectUrl:  redirectUrl,
-		CreatedAt:    time.Now(),
-	}
-}
-
-func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
-	elidc, err := r.Cookie(string(CookieNameEmailListID))
-	if err != nil {
-		return nil, err
-	}
-
-	pnc, err := r.Cookie(string(CookieNameProviderName))
-	if err != nil {
-		return nil, err
-	}
-	providerName, err := ToProviderName(pnc.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	oidc, err := r.Cookie(string(CookieNameOutputIDs))
-	if err != nil {
-		return nil, err
-	}
-	outputIDs := strings.Split(oidc.Value, outputCookieDelim)
-
-	rurlc, err := r.Cookie(string(CookieNameRedirectURL))
-	if err != nil {
-		return nil, err
-	}
-
-	cac, err := r.Cookie(string(CookieNameCreatedAt))
-	if err != nil {
-		return nil, err
-	}
-	createdAt, err := time.Parse(timestampLayout, cac.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ProviderCookie{
-		EmailListID:  elidc.Value,
-		ProviderName: providerName,
-		OutputIDs:    outputIDs,
-		RedirectUrl:  rurlc.Value,
-		CreatedAt:    createdAt,
-	}, nil
-}
-
-// TODO: determine if cookies need to be encoded
-func (pc ProviderCookie) Set(w http.ResponseWriter) {
-	setCookie(w, CookieNameEmailListID, pc.EmailListID)
-	setCookie(w, CookieNameProviderName, string(pc.ProviderName))
-	setCookie(w, CookieNameOutputIDs, strings.Join(pc.OutputIDs, outputCookieDelim))
-	setCookie(w, CookieNameRedirectURL, pc.RedirectUrl)
-	setCookie(w, CookieNameCreatedAt, pc.CreatedAt.Format(timestampFormat))
 }

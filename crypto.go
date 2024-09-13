@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
@@ -89,7 +88,6 @@ func (o OAuthDecEncoder) Decode(oauthID string) (
 func Encrypt(secret, value string) (string, error) {
 	claims := jwt.MapClaims{
 		"data": value,
-		"exp":  time.Now().Add(time.Hour * 1).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

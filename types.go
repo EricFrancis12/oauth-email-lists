@@ -154,6 +154,7 @@ const (
 
 const (
 	EnvCatchAllRedirectUrl string = "CATCH_ALL_REDIRECT_URL"
+	EnvCookieSecret        string = "COOKIE_SECRET"
 	EnvCryptoSecret        string = "CRYPTO_SECRET"
 	EnvGoogleClientID      string = "GOOGLE_CLIENT_ID"
 	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"

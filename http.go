@@ -29,3 +29,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
+
+func WriteUnauthorized(w http.ResponseWriter) error {
+	return WriteJSON(w, http.StatusUnauthorized, NewJsonResponse(false, nil, unauthorized()))
+}

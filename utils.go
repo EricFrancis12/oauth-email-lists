@@ -5,12 +5,12 @@ import (
 	"os"
 )
 
-func setCookie(w http.ResponseWriter, name CookieName, value string) {
+func setCookie(w http.ResponseWriter, name string, value string) {
 	cookie := &http.Cookie{
 		Name:     string(name),
 		Value:    value,
 		Path:     "/",
-		MaxAge:   0, // No max age
+		MaxAge:   0, // Zero means no max age
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
