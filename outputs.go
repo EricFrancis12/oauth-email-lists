@@ -2,25 +2,23 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/resend/resend-go/v2"
 )
 
-// TODO: remove apiKey from the output models (and db), and instead have it be an env variable
-func makeOutput(id string, userID string, outputName OutputName, apiKey string, listID string) Output {
+func makeOutput(id string, userID string, outputName OutputName, listID string) Output {
 	switch outputName {
 	case OutputNameAWeber:
 		return AWeberOutput{
 			ID:     id,
 			UserID: userID,
-			ApiKey: apiKey,
 			ListID: listID,
 		}
 	case OutputNameResend:
 		return ResendOutput{
 			ID:         id,
 			UserID:     userID,
-			ApiKey:     apiKey,
 			AudienceID: listID,
 		}
 	}
@@ -42,7 +40,12 @@ func (ro ResendOutput) OutputName() OutputName {
 }
 
 func (ro ResendOutput) Handle(emailAddr string, name string) error {
-	client := resend.NewClient(ro.ApiKey)
+	resendApiKey := os.Getenv(EnvResendApiKey)
+	if resendApiKey == "" {
+		return missingEnv(EnvResendApiKey)
+	}
+
+	client := resend.NewClient(resendApiKey)
 
 	params := &resend.CreateContactRequest{
 		Email:        emailAddr,

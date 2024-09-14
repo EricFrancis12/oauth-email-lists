@@ -446,11 +446,3 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 func handleCatchAll(w http.ResponseWriter, r *http.Request) {
 	RedirectToCatchAllUrl(w, r)
 }
-
-func userIDNotProvided() error {
-	return fmt.Errorf("user ID not provided")
-}
-
-func outputIDNotProvided() error {
-	return fmt.Errorf("output ID not provided")
-}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -92,7 +91,7 @@ func (pc ProviderCookie) Set(w http.ResponseWriter) error {
 func (cn CookieName) encrypt() (string, error) {
 	cookieSecret := os.Getenv(EnvCookieSecret)
 	if cookieSecret == "" {
-		return "", fmt.Errorf("missing environment variable %s", EnvCookieSecret)
+		return "", missingEnv(EnvCookieSecret)
 	}
 	return Encrypt(cookieSecret, string(cn))
 }
@@ -100,7 +99,7 @@ func (cn CookieName) encrypt() (string, error) {
 func (cn CookieName) DecryptFrom(r *http.Request) (string, error) {
 	cookieSecret := os.Getenv(EnvCookieSecret)
 	if cookieSecret == "" {
-		return "", fmt.Errorf("missing environment variable %s", EnvCookieSecret)
+		return "", missingEnv(EnvCookieSecret)
 	}
 
 	encryptedCookieName, err := cn.encrypt()
@@ -119,7 +118,7 @@ func (cn CookieName) DecryptFrom(r *http.Request) (string, error) {
 func (cn CookieName) SetEncrypted(w http.ResponseWriter, value string) error {
 	cookieSecret := os.Getenv(EnvCookieSecret)
 	if cookieSecret == "" {
-		return fmt.Errorf("missing environment variable %s", EnvCookieSecret)
+		return missingEnv(EnvCookieSecret)
 	}
 
 	encryptedCookieName, err := cn.encrypt()

@@ -130,7 +130,3 @@ func validPassword(password string) (bool, error) {
 	}
 	return true, nil
 }
-
-func unauthorized() error {
-	return fmt.Errorf("unauthorized")
-}

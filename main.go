@@ -20,14 +20,14 @@ func main() {
 
 	secret := os.Getenv(EnvCryptoSecret)
 	if !validSecret(secret) {
-		log.Fatalf("missing or invalid environment variable %s", EnvCryptoSecret)
+		log.Fatal(missingEnv(EnvCryptoSecret))
 	}
 
 	decenc = NewOAuthDecEncoder(secret, oauthDecEncDelim)
 
 	postgresConnStr := os.Getenv(EnvPostgresConnStr)
 	if postgresConnStr == "" {
-		log.Fatalf("missing or invalid environment variable %s", EnvPostgresConnStr)
+		log.Fatal(missingEnv(EnvPostgresConnStr))
 	}
 
 	storage = NewStorage(postgresConnStr)

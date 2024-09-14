@@ -78,7 +78,6 @@ var initTablesQueries = []string{
 		id varchar(50) primary key,
 		user_id varchar(50),
 		output_name varchar(30),
-		api_key varchar(100),
 		list_id varchar(100),
 		foreign key (user_id) references users(id)
 	)`,
@@ -403,20 +402,19 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 
 func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 	id := NewUUID()
-	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ApiKey, cr.ListID)
+	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID)
 
 	query := `
 		insert into outputs
-		(id, user_id, output_name, api_key, list_id)
+		(id, user_id, output_name, list_id)
 		values
-		($1, $2, $3, $4, $5)
+		($1, $2, $3, $4)
 	`
 	if _, err := s.db.Query(
 		query,
 		id,
 		cr.UserID,
 		output.OutputName(),
-		cr.ApiKey,
 		cr.ListID,
 	); err != nil {
 		return nil, err
@@ -488,7 +486,6 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		id         string
 		userID     string
 		outputName OutputName
-		apiKey     string
 		listID     string
 	)
 
@@ -496,12 +493,11 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		&id,
 		&userID,
 		&outputName,
-		&apiKey,
 		&listID,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return makeOutput(id, userID, outputName, apiKey, listID), nil
+	return makeOutput(id, userID, outputName, listID), nil
 }

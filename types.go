@@ -21,7 +21,7 @@ func (c Campaign) Link() (string, error) {
 	)
 
 	if protocol == "" || hostname == "" {
-		return "", fmt.Errorf("environment variables %s and %s are required", EnvProtocol, EnvHostname)
+		return "", missingEnv(EnvProtocol, EnvHostname)
 	}
 
 	oauthID, err := decenc.Encode(c.EmailListID, c.ProviderName, c.OutputIDs, c.RedirectUrl)
@@ -63,21 +63,18 @@ type Output interface {
 type OutputCreationReq struct {
 	UserID     string     `json:"userId"`
 	OutputName OutputName `json:"outputName"`
-	ApiKey     string     `json:"apiKey"`
 	ListID     string     `json:"listId"`
 }
 
 type AWeberOutput struct {
 	ID     string `json:"id"`
 	UserID string `json:"userId"`
-	ApiKey string `json:"apiKey"`
 	ListID string `json:"listId"`
 }
 
 type ResendOutput struct {
 	ID         string `json:"id"`
 	UserID     string `json:"userId"`
-	ApiKey     string `json:"apiKey"`
 	AudienceID string `json:"audienceId"`
 }
 
@@ -163,6 +160,7 @@ const (
 	EnvPort                string = "PORT"
 	EnvProtocol            string = "PROTOCOL"
 	EnvPostgresConnStr     string = "POSTGRES_CONN_STR"
+	EnvResendApiKey        string = "RESEND_API_KEY"
 	EnvRootPassword        string = "ROOT_PASSWORD"
 	EnvRootUsername        string = "ROOT_USERNAME"
 )
