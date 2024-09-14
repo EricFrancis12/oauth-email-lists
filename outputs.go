@@ -8,7 +8,14 @@ import (
 	"github.com/resend/resend-go/v2"
 )
 
-func makeOutput(id string, userID string, outputName OutputName, listID string, createdAt time.Time) Output {
+func makeOutput(
+	id string,
+	userID string,
+	outputName OutputName,
+	listID string,
+	createdAt time.Time,
+	updatedAt time.Time,
+) Output {
 	switch outputName {
 	case OutputNameAWeber:
 		return AWeberOutput{
@@ -16,6 +23,7 @@ func makeOutput(id string, userID string, outputName OutputName, listID string, 
 			UserID:    userID,
 			ListID:    listID,
 			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
 		}
 	case OutputNameResend:
 		return ResendOutput{
@@ -23,6 +31,7 @@ func makeOutput(id string, userID string, outputName OutputName, listID string, 
 			UserID:     userID,
 			AudienceID: listID,
 			CreatedAt:  createdAt,
+			UpdatedAt:  updatedAt,
 		}
 	}
 	return nil
@@ -30,6 +39,10 @@ func makeOutput(id string, userID string, outputName OutputName, listID string, 
 
 func (ao AWeberOutput) OutputName() OutputName {
 	return OutputNameAWeber
+}
+
+func (ao AWeberOutput) GetUserID() string {
+	return ao.UserID
 }
 
 func (ao AWeberOutput) Handle(emailAddr string, name string) error {
@@ -40,6 +53,10 @@ func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 
 func (ro ResendOutput) OutputName() OutputName {
 	return OutputNameResend
+}
+
+func (ro ResendOutput) GetUserID() string {
+	return ro.UserID
 }
 
 func (ro ResendOutput) Handle(emailAddr string, name string) error {
@@ -63,4 +80,24 @@ func (ro ResendOutput) Handle(emailAddr string, name string) error {
 	}
 
 	return nil
+}
+
+func makeOutputsData(outputs []Output) OutputsData {
+	od := make(OutputsData)
+
+	for _, output := range outputs {
+		if output == nil {
+			continue
+		}
+
+		on := output.OutputName()
+		_, ok := od[on]
+		if ok {
+			od[on] = append(od[on], output)
+		} else {
+			od[on] = []Output{output}
+		}
+	}
+
+	return od
 }

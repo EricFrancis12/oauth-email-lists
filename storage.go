@@ -51,21 +51,40 @@ func (s *Storage) Connect() error {
 	return nil
 }
 
-// TODO: add updatedAt fields to all models in db
+func sqlTrigger(triggerName string, tableName string) string {
+	return fmt.Sprintf(
+		"create or replace trigger %s before update on %s for each row execute procedure update_modified_column();",
+		triggerName,
+		tableName,
+	)
+}
+
 var initTablesQueries = []string{
+	`create or replace function update_modified_column()
+		returns trigger as $$
+		begin
+		new.updated_at = now();
+		return new;
+		end;
+		$$ language 'plpgsql';
+	`,
 	`create table if not exists users (
 		id varchar(50) primary key,
 		name varchar(100) unique,
 		hashed_password varchar(100),
-		created_at timestamp default current_timestamp
+		created_at timestamp default current_timestamp,
+		updated_at timestamp default current_timestamp
 	)`,
+	sqlTrigger("update_users_updated_at", "users"),
 	`create table if not exists email_lists (
 		id varchar(50) primary key,
 		user_id varchar(50),
 		name varchar(100),
 		created_at timestamp default current_timestamp,
+		updated_at timestamp default current_timestamp,
 		foreign key (user_id) references users(id)
 	)`,
+	sqlTrigger("update_email_lists_updated_at", "email_lists"),
 	`create table if not exists subscribers (
 		id varchar(50) primary key,
 		email_list_id varchar(50),
@@ -74,17 +93,21 @@ var initTablesQueries = []string{
 		name varchar(100),
 		email_addr varchar(150) unique,
 		created_at timestamp default current_timestamp,
+		updated_at timestamp default current_timestamp,
 		foreign key (email_list_id) references email_lists(id),
 		foreign key (user_id) references users(id)
 	)`,
+	sqlTrigger("update_subscribers_updated_at", "subscribers"),
 	`create table if not exists outputs (
 		id varchar(50) primary key,
 		user_id varchar(50),
 		output_name varchar(30),
 		list_id varchar(100),
 		created_at timestamp default current_timestamp,
+		updated_at timestamp default current_timestamp,
 		foreign key (user_id) references users(id)
 	)`,
+	sqlTrigger("update_outputs_updated_at", "outputs"),
 }
 
 func (s *Storage) initTables() error {
@@ -222,6 +245,7 @@ func scanIntoUser(rows *sql.Rows) (*User, error) {
 		&user.Name,
 		&user.HashedPassword,
 		&user.CreatedAt,
+		&user.UpdatedAt,
 	)
 	return user, err
 }
@@ -231,9 +255,9 @@ func (s *Storage) InsertNewEmailList(cr EmailListCreationReq) (*EmailList, error
 
 	query := `
 		insert into email_lists
-		(id, user_id, name, created_at)
+		(id, user_id, name, created_at, updated_at)
 		values
-		($1, $2, $3, $4)
+		($1, $2, $3, $4, $5)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -241,6 +265,7 @@ func (s *Storage) InsertNewEmailList(cr EmailListCreationReq) (*EmailList, error
 		emailList.UserID,
 		emailList.Name,
 		emailList.CreatedAt,
+		emailList.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -329,6 +354,7 @@ func scanIntoEmailList(rows *sql.Rows) (*EmailList, error) {
 		&emailList.UserID,
 		&emailList.Name,
 		&emailList.CreatedAt,
+		&emailList.UpdatedAt,
 	)
 	return emailList, err
 }
@@ -338,9 +364,9 @@ func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, er
 
 	query := `
 		insert into subscribers
-		(id, email_list_id, user_id, source_provider_name, name, email_addr, created_at)
+		(id, email_list_id, user_id, source_provider_name, name, email_addr, created_at, updated_at)
 		values
-		($1, $2, $3, $4, $5, $6, $7)
+		($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -351,6 +377,7 @@ func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, er
 		subscriber.Name,
 		subscriber.EmailAddr,
 		subscriber.CreatedAt,
+		subscriber.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -406,20 +433,21 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 		&subscriber.Name,
 		&subscriber.EmailAddr,
 		&subscriber.CreatedAt,
+		&subscriber.UpdatedAt,
 	)
 	return subscriber, err
 }
 
 func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 	id := NewUUID()
-	createdAt := time.Now()
-	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID, createdAt)
+	now := time.Now()
+	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID, now, now)
 
 	query := `
 		insert into outputs
-		(id, user_id, output_name, list_id, created_at)
+		(id, user_id, output_name, list_id, created_at, updated_at)
 		values
-		($1, $2, $3, $4, $5)
+		($1, $2, $3, $4, $5, $6)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -427,7 +455,8 @@ func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 		cr.UserID,
 		output.OutputName(),
 		cr.ListID,
-		createdAt,
+		now,
+		now,
 	); err != nil {
 		return nil, err
 	}
@@ -493,6 +522,31 @@ func (s *Storage) GetOutputByIDAndUserID(id string, userID string) (Output, erro
 	return nil, fmt.Errorf("output %s not found", id)
 }
 
+func (s *Storage) UpdateOutputByIDAndUserID(id string, userID string, ur OutputUpdateReq) error {
+	query := "update outputs set "
+	args := []interface{}{}
+
+	if ur.OutputName != "" {
+		query += "output_name = $" + fmt.Sprintf("%d", len(args)+1)
+		args = append(args, ur.OutputName)
+	}
+	if ur.ListID != "" {
+		query += "list_id = $" + fmt.Sprintf("%d", len(args)+1)
+		args = append(args, ur.ListID)
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("no update fields specified")
+	}
+
+	query += " where id = $" + fmt.Sprintf("%d", len(args)+1)
+	query += " and user_id = $" + fmt.Sprintf("%d", len(args)+2)
+	args = append(args, id, userID)
+
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
 func scanIntoOutput(rows *sql.Rows) (Output, error) {
 	var (
 		id         string
@@ -500,6 +554,7 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		outputName OutputName
 		listID     string
 		createdAt  time.Time
+		updatedAt  time.Time
 	)
 
 	err := rows.Scan(
@@ -508,10 +563,11 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		&outputName,
 		&listID,
 		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return makeOutput(id, userID, outputName, listID, createdAt), nil
+	return makeOutput(id, userID, outputName, listID, createdAt, updatedAt), nil
 }

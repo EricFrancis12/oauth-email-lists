@@ -66,6 +66,7 @@ func (s *Server) Run() error {
 	router.HandleFunc("/outputs", handleInsertNewOutputByUserID).Methods(http.MethodPost)
 	router.HandleFunc("/outputs", handleGetAllOutputsByUserID).Methods(http.MethodGet)
 	router.HandleFunc("/outputs/{outputID}", handleGetOutputByIDAndUserID).Methods(http.MethodGet)
+	router.HandleFunc("/outputs/{outputID}", handleUpdateOutputByIDAndUserID).Methods(http.MethodPatch)
 
 	router.HandleFunc("/healthz", handleHealthz)
 
@@ -432,7 +433,7 @@ func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
-	WriteJSON(w, http.StatusOK, NewJsonResponse(true, outputs, nil))
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, makeOutputsData(outputs), nil))
 }
 
 func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
@@ -464,6 +465,43 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, output)
+}
+
+func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	outputID := mux.Vars(r)["outputID"]
+	if outputID == "" {
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
+		return
+	}
+
+	var ur OutputUpdateReq
+	if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	userID := user.ID
+	if IsRootUser(user) {
+		output, err := storage.GetOutputByID(outputID)
+		if err != nil {
+			WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+			return
+		}
+		userID = output.GetUserID()
+	}
+
+	if err := storage.UpdateOutputByIDAndUserID(outputID, userID, ur); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
 }
 
 func handleHealthz(w http.ResponseWriter, r *http.Request) {

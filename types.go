@@ -37,14 +37,17 @@ type EmailList struct {
 	UserID    string    `json:"userId"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 func NewEmailList(userID string, name string) *EmailList {
+	now := time.Now()
 	return &EmailList{
 		ID:        NewUUID(),
 		UserID:    userID,
 		Name:      name,
-		CreatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 }
 
@@ -59,11 +62,19 @@ type EmailListUpdateReq struct {
 
 type Output interface {
 	OutputName() OutputName
+	GetUserID() string
 	Handle(emailAddr string, name string) error
 }
 
+type OutputsData map[OutputName][]Output
+
 type OutputCreationReq struct {
 	UserID     string     `json:"userId"`
+	OutputName OutputName `json:"outputName"`
+	ListID     string     `json:"listId"`
+}
+
+type OutputUpdateReq struct {
 	OutputName OutputName `json:"outputName"`
 	ListID     string     `json:"listId"`
 }
@@ -73,6 +84,7 @@ type AWeberOutput struct {
 	UserID    string    `json:"userId"`
 	ListID    string    `json:"listId"`
 	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type ResendOutput struct {
@@ -80,6 +92,7 @@ type ResendOutput struct {
 	UserID     string    `json:"userId"`
 	AudienceID string    `json:"audienceId"`
 	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type Subscriber struct {
@@ -90,6 +103,7 @@ type Subscriber struct {
 	Name               string       `json:"name"`
 	EmailAddr          string       `json:"emailAddr"`
 	CreatedAt          time.Time    `json:"createdAt"`
+	UpdatedAt          time.Time    `json:"updatedAt"`
 }
 
 func NewSubscriber(
@@ -99,6 +113,7 @@ func NewSubscriber(
 	name string,
 	emailAddr string,
 ) *Subscriber {
+	now := time.Now()
 	return &Subscriber{
 		ID:                 NewUUID(),
 		EmailListID:        emailListID,
@@ -106,7 +121,8 @@ func NewSubscriber(
 		SourceProviderName: sourceProviderName,
 		Name:               name,
 		EmailAddr:          emailAddr,
-		CreatedAt:          time.Now(),
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
 }
 
@@ -128,6 +144,7 @@ type User struct {
 	Name           string    `json:"name"`
 	HashedPassword string    `json:"hashedPassword"`
 	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 func NewUser(name string, password string) (*User, error) {
@@ -135,12 +152,13 @@ func NewUser(name string, password string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	now := time.Now()
 	return &User{
 		ID:             NewUUID(),
 		Name:           name,
 		HashedPassword: string(hpw),
-		CreatedAt:      time.Now(),
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}, nil
 }
 
