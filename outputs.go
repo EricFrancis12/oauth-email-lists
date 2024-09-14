@@ -3,23 +3,26 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/resend/resend-go/v2"
 )
 
-func makeOutput(id string, userID string, outputName OutputName, listID string) Output {
+func makeOutput(id string, userID string, outputName OutputName, listID string, createdAt time.Time) Output {
 	switch outputName {
 	case OutputNameAWeber:
 		return AWeberOutput{
-			ID:     id,
-			UserID: userID,
-			ListID: listID,
+			ID:        id,
+			UserID:    userID,
+			ListID:    listID,
+			CreatedAt: createdAt,
 		}
 	case OutputNameResend:
 		return ResendOutput{
 			ID:         id,
 			UserID:     userID,
 			AudienceID: listID,
+			CreatedAt:  createdAt,
 		}
 	}
 	return nil

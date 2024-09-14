@@ -60,6 +60,7 @@ func (s *Server) Run() error {
 	router.HandleFunc("/email-lists", handleInsertNewEmailListByUserID).Methods(http.MethodPost)
 	router.HandleFunc("/email-lists", handleGetAllEmailListsByUserID).Methods(http.MethodGet)
 
+	router.HandleFunc("/subscribers", handleInsertNewSubscriberByEmailListIDAndUserID).Methods(http.MethodPost)
 	router.HandleFunc("/subscribers", handleGetAllSubscribersByUserID).Methods(http.MethodGet)
 
 	router.HandleFunc("/outputs", handleInsertNewOutputByUserID).Methods(http.MethodPost)
@@ -333,6 +334,31 @@ func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, NewJsonResponse(true, emailLists, nil))
+}
+
+func handleInsertNewSubscriberByEmailListIDAndUserID(w http.ResponseWriter, r *http.Request) {
+	user, err := useProtectedRoute(w, r)
+	if err != nil {
+		WriteUnauthorized(w)
+		return
+	}
+
+	var cr SubscriberCreationReq
+	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+	if !IsRootUser(user) {
+		cr.UserID = user.ID
+	}
+
+	subscriber, err := storage.InsertNewSubscriber(cr)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, subscriber, nil))
 }
 
 func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {

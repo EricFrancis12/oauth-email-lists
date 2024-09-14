@@ -33,16 +33,18 @@ func (c Campaign) Link() (string, error) {
 }
 
 type EmailList struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-	Name   string `json:"name"`
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func NewEmailList(userID string, name string) *EmailList {
 	return &EmailList{
-		ID:     NewUUID(),
-		UserID: userID,
-		Name:   name,
+		ID:        NewUUID(),
+		UserID:    userID,
+		Name:      name,
+		CreatedAt: time.Now(),
 	}
 }
 
@@ -67,15 +69,17 @@ type OutputCreationReq struct {
 }
 
 type AWeberOutput struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-	ListID string `json:"listId"`
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	ListID    string    `json:"listId"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type ResendOutput struct {
-	ID         string `json:"id"`
-	UserID     string `json:"userId"`
-	AudienceID string `json:"audienceId"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
+	AudienceID string    `json:"audienceId"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type Subscriber struct {
@@ -85,6 +89,7 @@ type Subscriber struct {
 	SourceProviderName ProviderName `json:"sourceProviderName"`
 	Name               string       `json:"name"`
 	EmailAddr          string       `json:"emailAddr"`
+	CreatedAt          time.Time    `json:"createdAt"`
 }
 
 func NewSubscriber(
@@ -101,6 +106,7 @@ func NewSubscriber(
 		SourceProviderName: sourceProviderName,
 		Name:               name,
 		EmailAddr:          emailAddr,
+		CreatedAt:          time.Now(),
 	}
 }
 

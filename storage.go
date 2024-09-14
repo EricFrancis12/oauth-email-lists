@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -50,18 +51,19 @@ func (s *Storage) Connect() error {
 	return nil
 }
 
-// TODO: add createdAt and updatedAt fields to all models in db
+// TODO: add updatedAt fields to all models in db
 var initTablesQueries = []string{
 	`create table if not exists users (
 		id varchar(50) primary key,
 		name varchar(100) unique,
 		hashed_password varchar(100),
-		created_at timestamp
+		created_at timestamp default current_timestamp
 	)`,
 	`create table if not exists email_lists (
 		id varchar(50) primary key,
 		user_id varchar(50),
 		name varchar(100),
+		created_at timestamp default current_timestamp,
 		foreign key (user_id) references users(id)
 	)`,
 	`create table if not exists subscribers (
@@ -71,6 +73,7 @@ var initTablesQueries = []string{
 		source_provider_name varchar(50),
 		name varchar(100),
 		email_addr varchar(150) unique,
+		created_at timestamp default current_timestamp,
 		foreign key (email_list_id) references email_lists(id),
 		foreign key (user_id) references users(id)
 	)`,
@@ -79,6 +82,7 @@ var initTablesQueries = []string{
 		user_id varchar(50),
 		output_name varchar(30),
 		list_id varchar(100),
+		created_at timestamp default current_timestamp,
 		foreign key (user_id) references users(id)
 	)`,
 }
@@ -227,15 +231,16 @@ func (s *Storage) InsertNewEmailList(cr EmailListCreationReq) (*EmailList, error
 
 	query := `
 		insert into email_lists
-		(id, user_id, name)
+		(id, user_id, name, created_at)
 		values
-		($1, $2, $3)
+		($1, $2, $3, $4)
 	`
 	if _, err := s.db.Query(
 		query,
 		emailList.ID,
 		emailList.UserID,
 		emailList.Name,
+		emailList.CreatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -323,6 +328,7 @@ func scanIntoEmailList(rows *sql.Rows) (*EmailList, error) {
 		&emailList.ID,
 		&emailList.UserID,
 		&emailList.Name,
+		&emailList.CreatedAt,
 	)
 	return emailList, err
 }
@@ -332,9 +338,9 @@ func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, er
 
 	query := `
 		insert into subscribers
-		(id, email_list_id, user_id, source_provider_name, name, email_addr)
+		(id, email_list_id, user_id, source_provider_name, name, email_addr, created_at)
 		values
-		($1, $2, $3, $4, $5, $6)
+		($1, $2, $3, $4, $5, $6, $7)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -344,6 +350,7 @@ func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, er
 		subscriber.SourceProviderName,
 		subscriber.Name,
 		subscriber.EmailAddr,
+		subscriber.CreatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -398,19 +405,21 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 		&subscriber.SourceProviderName,
 		&subscriber.Name,
 		&subscriber.EmailAddr,
+		&subscriber.CreatedAt,
 	)
 	return subscriber, err
 }
 
 func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 	id := NewUUID()
-	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID)
+	createdAt := time.Now()
+	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID, createdAt)
 
 	query := `
 		insert into outputs
-		(id, user_id, output_name, list_id)
+		(id, user_id, output_name, list_id, created_at)
 		values
-		($1, $2, $3, $4)
+		($1, $2, $3, $4, $5)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -418,6 +427,7 @@ func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 		cr.UserID,
 		output.OutputName(),
 		cr.ListID,
+		createdAt,
 	); err != nil {
 		return nil, err
 	}
@@ -489,6 +499,7 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		userID     string
 		outputName OutputName
 		listID     string
+		createdAt  time.Time
 	)
 
 	err := rows.Scan(
@@ -496,10 +507,11 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		&userID,
 		&outputName,
 		&listID,
+		&createdAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return makeOutput(id, userID, outputName, listID), nil
+	return makeOutput(id, userID, outputName, listID, createdAt), nil
 }
