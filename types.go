@@ -79,28 +79,37 @@ type ResendOutput struct {
 }
 
 type Subscriber struct {
-	ID          string `json:"id"`
-	EmailListID string `json:"emailListId"`
-	UserID      string `json:"userId"`
-	Name        string `json:"name"`
-	EmailAddr   string `json:"emailAddr"`
+	ID                 string       `json:"id"`
+	EmailListID        string       `json:"emailListId"`
+	UserID             string       `json:"userId"`
+	SourceProviderName ProviderName `json:"sourceProviderName"`
+	Name               string       `json:"name"`
+	EmailAddr          string       `json:"emailAddr"`
 }
 
-func NewSubscriber(emailListID string, userID string, name string, emailAddr string) *Subscriber {
+func NewSubscriber(
+	emailListID string,
+	userID string,
+	sourceProviderName ProviderName,
+	name string,
+	emailAddr string,
+) *Subscriber {
 	return &Subscriber{
-		ID:          NewUUID(),
-		EmailListID: emailListID,
-		UserID:      userID,
-		Name:        name,
-		EmailAddr:   emailAddr,
+		ID:                 NewUUID(),
+		EmailListID:        emailListID,
+		UserID:             userID,
+		SourceProviderName: sourceProviderName,
+		Name:               name,
+		EmailAddr:          emailAddr,
 	}
 }
 
 type SubscriberCreationReq struct {
-	EmailListID string `json:"emailListId"`
-	UserID      string `json:"userId"`
-	Name        string `json:"name"`
-	EmailAddr   string `json:"emailAddr"`
+	EmailListID        string       `json:"emailListId"`
+	UserID             string       `json:"userId"`
+	SourceProviderName ProviderName `json:"sourceProviderName"`
+	Name               string       `json:"name"`
+	EmailAddr          string       `json:"emailAddr"`
 }
 
 type SubscriberUpdateReq struct {

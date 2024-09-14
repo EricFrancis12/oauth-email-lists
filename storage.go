@@ -64,11 +64,11 @@ var initTablesQueries = []string{
 		name varchar(100),
 		foreign key (user_id) references users(id)
 	)`,
-	// TODO: add source field to subscriber model
 	`create table if not exists subscribers (
 		id varchar(50) primary key,
 		email_list_id varchar(50),
 		user_id varchar(50),
+		source_provider_name varchar(50),
 		name varchar(100),
 		email_addr varchar(150) unique,
 		foreign key (email_list_id) references email_lists(id),
@@ -328,19 +328,20 @@ func scanIntoEmailList(rows *sql.Rows) (*EmailList, error) {
 }
 
 func (s *Storage) InsertNewSubscriber(cr SubscriberCreationReq) (*Subscriber, error) {
-	subscriber := NewSubscriber(cr.EmailListID, cr.UserID, cr.Name, cr.EmailAddr)
+	subscriber := NewSubscriber(cr.EmailListID, cr.UserID, cr.SourceProviderName, cr.Name, cr.EmailAddr)
 
 	query := `
 		insert into subscribers
-		(id, email_list_id, user_id, name, email_addr)
+		(id, email_list_id, user_id, source_provider_name, name, email_addr)
 		values
-		($1, $2, $3, $4, $5)
+		($1, $2, $3, $4, $5, $6)
 	`
 	if _, err := s.db.Query(
 		query,
 		subscriber.ID,
 		subscriber.EmailListID,
 		subscriber.UserID,
+		subscriber.SourceProviderName,
 		subscriber.Name,
 		subscriber.EmailAddr,
 	); err != nil {
@@ -394,6 +395,7 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 		&subscriber.ID,
 		&subscriber.EmailListID,
 		&subscriber.UserID,
+		&subscriber.SourceProviderName,
 		&subscriber.Name,
 		&subscriber.EmailAddr,
 	)

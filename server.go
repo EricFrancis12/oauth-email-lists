@@ -180,10 +180,11 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	cr := SubscriberCreationReq{
-		EmailListID: pc.EmailListID,
-		UserID:      userID,
-		Name:        gpr.Name,
-		EmailAddr:   gpr.Email,
+		EmailListID:        pc.EmailListID,
+		UserID:             userID,
+		SourceProviderName: pc.ProviderName,
+		Name:               gpr.Name,
+		EmailAddr:          gpr.Email,
 	}
 	storage.InsertNewSubscriber(cr)
 }
