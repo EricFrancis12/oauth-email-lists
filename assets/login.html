@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: "Lato", sans-serif;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        main *,
+        form * {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Enter Your Username and Password</h1>
+        <div id="message"></div>
+        <form id="login-form">
+            <input id="username-input" type="text" placeholder="username" required>
+
+            <input id="password-input" type="password" placeholder="password" required>
+
+            <button id="submit-button" type="submit">Submit</button>
+        </form>
+    </main>
+
+    <script>
+        const MIN_WAIT_TIME_MS = 500;
+
+        const messageEle = document.getElementById("message");
+        const formEle = document.getElementById("login-form");
+        const usernameInputEle = document.getElementById("username-input");
+        const passwordInputEle = document.getElementById("password-input");
+        const submitButtonEle = document.getElementById("submit-button");
+
+        function setMessage(newMessage, color) {
+            messageEle.innerText = newMessage;
+            messageEle.style.color = color;
+        }
+
+        let loading = false;
+        function setLoading(bool) {
+            loading = bool;
+        }
+
+        formEle.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (loading) return;
+
+            if (!usernameInputEle.value) {
+                setMessage("username is required", "red")
+                return;
+            }
+
+            if (!passwordInputEle.value) {
+                setMessage("password is required", "red")
+                return;
+            }
+
+            setMessage("loading...", "black");
+            setLoading(true);
+
+            const waitProm = new Promise(resolve => setTimeout(resolve, MIN_WAIT_TIME_MS));
+
+            try {
+                const resProm = fetch("/login", {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    method: "POST",
+                    body: JSON.stringify({
+                        username: usernameInputEle.value,
+                        password: passwordInputEle.value,
+                    }),
+                });
+
+                await waitProm;
+
+                const res = await resProm;
+
+                if (res.status >= 300) {
+                    setMessage("login error", "red");
+                    return;
+                }
+
+                setMessage("You are logged in", "green");
+                usernameInputEle.value = "";
+                passwordInputEle.value = "";
+            } catch (err) {
+                setMessage("unknown error", "red");
+            } finally {
+                setLoading(false);
+            }
+        });
+
+    </script>
+</body>
+
+</html>

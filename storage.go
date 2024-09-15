@@ -6,6 +6,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const sqlDriverName string = "postgres"
@@ -185,20 +186,28 @@ func (s *Storage) GetUserByID(id string) (*User, error) {
 	return nil, fmt.Errorf("user %s not found", id)
 }
 
-func (s *Storage) GetUserByUsernameAndPassword(username string, password string) (*User, error) {
-	hashedPassword, err := hashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := s.db.Query("select * from users where name = $1, hashed_password = $2", username, hashedPassword)
+func (s *Storage) GetUserByName(username string) (*User, error) {
+	rows, err := s.db.Query("select * from users where name = $1", username)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		return scanIntoUser(rows)
 	}
-	return nil, fmt.Errorf("user not found")
+	return nil, fmt.Errorf("user %s not found", username)
+}
+
+func (s *Storage) GetUserByUsernameAndPassword(username string, password string) (*User, error) {
+	user, err := s.GetUserByName(username)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password)); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (s *Storage) UpdateUserByID(id string, ur UserUpdateReq) error {

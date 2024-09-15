@@ -135,7 +135,7 @@ func validSecret(secret string) bool {
 }
 
 func validDelim(delim string) bool {
-	if len(delim) < MinDelimLength {
+	if len(delim) < minDelimLength {
 		return false
 	}
 

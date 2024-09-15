@@ -60,6 +60,11 @@ type EmailListUpdateReq struct {
 	Name string `json:"name"`
 }
 
+type LoginInfo struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type Output interface {
 	OutputName() OutputName
 	GetUserID() string
@@ -156,7 +161,7 @@ func NewUser(name string, password string) (*User, error) {
 	return &User{
 		ID:             NewUUID(),
 		Name:           name,
-		HashedPassword: string(hpw),
+		HashedPassword: hpw,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}, nil
@@ -177,6 +182,7 @@ type CookieName string
 const (
 	CookieNameCreatedAt    CookieName = "createdAt"
 	CookieNameEmailListID  CookieName = "emailListId"
+	CookieNameJWT          CookieName = "jwt"
 	CookieNameOutputIDs    CookieName = "outputIds"
 	CookieNameProviderName CookieName = "providerName"
 	CookieNameRedirectURL  CookieName = "redirectUrl"
@@ -198,10 +204,7 @@ const (
 	EnvRootUsername        string = "ROOT_USERNAME"
 )
 
-const (
-	HTTPHeaderContentType string = "Content-Type"
-	HTTPHeaderJWTToken    string = "X-JWT-Token"
-)
+const HTTPHeaderContentType string = "Content-Type"
 
 type OutputName string
 

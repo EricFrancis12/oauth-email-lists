@@ -134,3 +134,29 @@ func (cn CookieName) SetEncrypted(w http.ResponseWriter, value string) error {
 	setCookie(w, encryptedCookieName, encryptedValue)
 	return nil
 }
+
+func setCookie(w http.ResponseWriter, name string, value string) {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   0, // Zero means no max age
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, cookie)
+}
+
+func clearCookie(w http.ResponseWriter, name string) {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Expires immediately
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, cookie)
+}

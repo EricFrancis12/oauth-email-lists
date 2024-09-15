@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -45,6 +46,11 @@ func NewJsonResponse(success bool, data any, err error) *JsonResponse {
 func (s *Server) Run() error {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
+	router.HandleFunc("/login", handlePostLogin).Methods(http.MethodPost)
+
+	router.HandleFunc("/logout", handleLogout).Methods(http.MethodGet, http.MethodPost)
+
 	router.HandleFunc("/c", Auth(handleMakeCampaign)).Methods(http.MethodPost)
 	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
 
@@ -76,6 +82,42 @@ func (s *Server) Run() error {
 	listenAddr := FallbackIfEmpty(s.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
+}
+
+func handleGetLogin(w http.ResponseWriter, r *http.Request) {
+	b, err := os.ReadFile(filePathLoginPage)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+	w.Write(b)
+}
+
+func handlePostLogin(w http.ResponseWriter, r *http.Request) {
+	var li LoginInfo
+	err := json.NewDecoder(r.Body).Decode(&li)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	user, err := storage.GetUserByUsernameAndPassword(li.Username, li.Password)
+	if err != nil || user == nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	if err := Login(w, user); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
+}
+
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	Logout(w)
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, nil, nil))
 }
 
 func handleCampaign(w http.ResponseWriter, r *http.Request) {

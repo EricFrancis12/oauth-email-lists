@@ -30,39 +30,45 @@ func NewRootUser(username string, password string) (*User, error) {
 }
 
 func useProtectedRoute(w http.ResponseWriter, r *http.Request) (*User, error) {
-	tokenStr := r.Header.Get(HTTPHeaderJWTToken)
-	token, err := validateJWT(tokenStr)
-	if err != nil || !token.Valid {
-		username, password, ok := r.BasicAuth()
-		if !ok || username == "" || password == "" {
-			return nil, unauthorized()
-		}
+	var token *jwt.Token
 
-		// Check if credentials match root user credentials
-		rootUser, err := NewRootUser(username, password)
-		if err == nil {
-			return rootUser, nil
+	cookie, err := r.Cookie(string(CookieNameJWT))
+	if err == nil && cookie != nil {
+		tk, err := validateJWT(cookie.Value)
+		if err == nil && tk != nil {
+			token = tk
 		}
+	}
 
-		user, err := storage.GetUserByUsernameAndPassword(username, password)
+	if token != nil && token.Valid {
+		claims := token.Claims.(jwt.MapClaims)
+		userID := claims["userID"].(string)
+
+		user, err := storage.GetUserByID(userID)
 		if err != nil {
-			return nil, err
-		}
-
-		if jwtStr, err := newJWTStr(user); err == nil {
-			w.Header().Add(HTTPHeaderJWTToken, jwtStr)
+			return nil, unauthorized()
 		}
 
 		return user, nil
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	userID := claims["userID"].(string)
-
-	user, err := storage.GetUserByID(userID)
-	if err != nil {
-		return nil, err
+	username, password, ok := r.BasicAuth()
+	if !ok || username == "" || password == "" {
+		return nil, unauthorized()
 	}
+
+	// Check if credentials match root user credentials
+	rootUser, err := NewRootUser(username, password)
+	if err == nil {
+		return rootUser, nil
+	}
+
+	user, err := storage.GetUserByUsernameAndPassword(username, password)
+	if err != nil {
+		return nil, unauthorized()
+	}
+
+	Login(w, user)
 
 	return user, nil
 }
@@ -70,7 +76,7 @@ func useProtectedRoute(w http.ResponseWriter, r *http.Request) (*User, error) {
 func Auth(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := useProtectedRoute(w, r)
-		if err != nil && user != nil {
+		if err != nil || user == nil {
 			WriteUnauthorized(w)
 			return
 		}
@@ -89,6 +95,19 @@ func RootAuth(h http.HandlerFunc) http.HandlerFunc {
 
 		h(w, r)
 	}
+}
+
+func Login(w http.ResponseWriter, user *User) error {
+	jwtStr, err := newJWTStr(user)
+	if err != nil {
+		return err
+	}
+	setCookie(w, string(CookieNameJWT), jwtStr)
+	return nil
+}
+
+func Logout(w http.ResponseWriter) {
+	clearCookie(w, string(CookieNameJWT))
 }
 
 func newJWTStr(user *User) (string, error) {
@@ -122,11 +141,11 @@ func hashPassword(password string) (string, error) {
 }
 
 func validPassword(password string) (bool, error) {
-	if len(password) < MinPasswordLength {
-		return false, fmt.Errorf("password should be at least %d characters long", MinPasswordLength)
+	if len(password) < minPasswordLength {
+		return false, fmt.Errorf("password should be at least %d characters long", minPasswordLength)
 	}
-	if len(password) > MaxPasswordLength {
-		return false, fmt.Errorf("password should be at most %d characters long", MaxPasswordLength)
+	if len(password) > maxPasswordLength {
+		return false, fmt.Errorf("password should be at most %d characters long", maxPasswordLength)
 	}
 	return true, nil
 }
