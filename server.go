@@ -46,36 +46,46 @@ func NewJsonResponse(success bool, data any, err error) *JsonResponse {
 func (s *Server) Run() error {
 	router := mux.NewRouter()
 
+	// Auth
 	router.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
 	router.HandleFunc("/login", handlePostLogin).Methods(http.MethodPost)
-
 	router.HandleFunc("/logout", handleLogout).Methods(http.MethodGet, http.MethodPost)
 
+	// General campaigns
 	router.HandleFunc("/c", Auth(handleMakeCampaign)).Methods(http.MethodPost)
 	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
 
+	// Discord campaigns
+	router.HandleFunc("/t/discord/{emailListID}", handleDiscordCampaign).Methods(http.MethodGet)
+	router.HandleFunc("/callback/discord", handleDiscordCampaignCallback).Methods(http.MethodGet)
+
+	// Google campaigns
 	router.HandleFunc("/t/google/{emailListID}", handleGoogleCampaign).Methods(http.MethodGet)
 	router.HandleFunc("/callback/google", handleGoogleCampaignCallback).Methods(http.MethodGet)
 
+	// Users
 	router.HandleFunc("/users", RootAuth(handleInsertNewUser)).Methods(http.MethodPost)
 	router.HandleFunc("/users", RootAuth(handleGetAllUsers)).Methods(http.MethodGet)
 	router.HandleFunc("/users/{userID}", RootAuth(handleGetUserByID)).Methods(http.MethodGet)
 	router.HandleFunc("/users/{userID}", RootAuth(handleUpdateUserByID)).Methods(http.MethodPatch)
 	router.HandleFunc("/users/{userID}", RootAuth(handleDeleteUserByID)).Methods(http.MethodDelete)
 
+	// Email lists
 	router.HandleFunc("/email-lists", handleInsertNewEmailListByUserID).Methods(http.MethodPost)
 	router.HandleFunc("/email-lists", handleGetAllEmailListsByUserID).Methods(http.MethodGet)
 
+	// Subscribers
 	router.HandleFunc("/subscribers", handleInsertNewSubscriberByEmailListIDAndUserID).Methods(http.MethodPost)
 	router.HandleFunc("/subscribers", handleGetAllSubscribersByUserID).Methods(http.MethodGet)
 
+	// Outputs
 	router.HandleFunc("/outputs", handleInsertNewOutputByUserID).Methods(http.MethodPost)
 	router.HandleFunc("/outputs", handleGetAllOutputsByUserID).Methods(http.MethodGet)
 	router.HandleFunc("/outputs/{outputID}", handleGetOutputByIDAndUserID).Methods(http.MethodGet)
 	router.HandleFunc("/outputs/{outputID}", handleUpdateOutputByIDAndUserID).Methods(http.MethodPatch)
 
+	// Misc
 	router.HandleFunc("/healthz", handleHealthz)
-
 	router.HandleFunc("/", handleCatchAll)
 	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
 
@@ -142,6 +152,14 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider.Redirect(w, r)
+}
+
+func handleDiscordCampaign(w http.ResponseWriter, r *http.Request) {
+	// TODO: ...
+}
+
+func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
+	// TODO: ...
 }
 
 func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {

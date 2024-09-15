@@ -77,11 +77,17 @@ type OutputCreationReq struct {
 	UserID     string     `json:"userId"`
 	OutputName OutputName `json:"outputName"`
 	ListID     string     `json:"listId"`
+	Param1     string     `json:"param1"`
+	Param2     string     `json:"param2"`
+	Param3     string     `json:"param3"`
 }
 
 type OutputUpdateReq struct {
 	OutputName OutputName `json:"outputName"`
 	ListID     string     `json:"listId"`
+	Param1     string     `json:"param1"`
+	Param2     string     `json:"param2"`
+	Param3     string     `json:"param3"`
 }
 
 type AWeberOutput struct {
@@ -98,6 +104,15 @@ type ResendOutput struct {
 	AudienceID string    `json:"audienceId"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
+}
+
+type TelegramOutput struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	ChatID    string    `json:"chatId"`
+	MsgFmt    string    `json:"msgFmt"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type Subscriber struct {
@@ -202,6 +217,12 @@ const (
 	EnvResendApiKey        string = "RESEND_API_KEY"
 	EnvRootPassword        string = "ROOT_PASSWORD"
 	EnvRootUsername        string = "ROOT_USERNAME"
+	EnvTelegramBotID       string = "TELEGRAM_BOT_ID"
+)
+
+const (
+	FormFieldText           string = "text"
+	FormFieldTelegramChatID string = "chat_id"
 )
 
 const HTTPHeaderContentType string = "Content-Type"
@@ -209,8 +230,9 @@ const HTTPHeaderContentType string = "Content-Type"
 type OutputName string
 
 const (
-	OutputNameAWeber OutputName = "aweber"
-	OutputNameResend OutputName = "resend"
+	OutputNameAWeber   OutputName = "aweber"
+	OutputNameResend   OutputName = "resend"
+	OutputNameTelegram OutputName = "telegram"
 )
 
 var outputNames = []OutputName{}

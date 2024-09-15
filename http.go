@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 )
@@ -32,4 +33,8 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 
 func WriteUnauthorized(w http.ResponseWriter) error {
 	return WriteJSON(w, http.StatusUnauthorized, NewJsonResponse(false, nil, unauthorized()))
+}
+
+func TelegramAPIMessageUrl(botID string) string {
+	return fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botID)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -104,6 +105,9 @@ var initTablesQueries = []string{
 		user_id varchar(50),
 		output_name varchar(30),
 		list_id varchar(100),
+		param_1 varchar(100),
+		param_2 varchar(100),
+		param_3 varchar(100),
 		created_at timestamp default current_timestamp,
 		updated_at timestamp default current_timestamp,
 		foreign key (user_id) references users(id)
@@ -450,13 +454,13 @@ func scanIntoSubscriber(rows *sql.Rows) (*Subscriber, error) {
 func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 	id := NewUUID()
 	now := time.Now()
-	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID, now, now)
+	output := makeOutput(id, cr.UserID, cr.OutputName, cr.ListID, cr.Param1, cr.Param2, cr.Param3, now, now)
 
 	query := `
 		insert into outputs
-		(id, user_id, output_name, list_id, created_at, updated_at)
+		(id, user_id, output_name, list_id, param_1, param_2, param_3, created_at, updated_at)
 		values
-		($1, $2, $3, $4, $5, $6)
+		($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	if _, err := s.db.Query(
 		query,
@@ -464,6 +468,9 @@ func (s *Storage) InsertNewOutput(cr OutputCreationReq) (Output, error) {
 		cr.UserID,
 		output.OutputName(),
 		cr.ListID,
+		cr.Param1,
+		cr.Param2,
+		cr.Param3,
 		now,
 		now,
 	); err != nil {
@@ -532,24 +539,47 @@ func (s *Storage) GetOutputByIDAndUserID(id string, userID string) (Output, erro
 }
 
 func (s *Storage) UpdateOutputByIDAndUserID(id string, userID string, ur OutputUpdateReq) error {
-	query := "update outputs set "
-	args := []interface{}{}
+	var (
+		setClauses []string
+		args       []interface{}
+	)
 
 	if ur.OutputName != "" {
-		query += "output_name = $" + fmt.Sprintf("%d", len(args)+1)
+		clause := "output_name = $" + fmt.Sprintf("%d", len(args)+1)
+		setClauses = append(setClauses, clause)
 		args = append(args, ur.OutputName)
 	}
 	if ur.ListID != "" {
-		query += "list_id = $" + fmt.Sprintf("%d", len(args)+1)
+		clause := fmt.Sprintf("list_id = $%d", len(args)+1)
+		setClauses = append(setClauses, clause)
 		args = append(args, ur.ListID)
 	}
+	if ur.Param1 != "" {
+		clause := fmt.Sprintf("param_1 = $%d", len(args)+1)
+		setClauses = append(setClauses, clause)
+		args = append(args, ur.Param1)
+	}
+	if ur.Param2 != "" {
+		clause := fmt.Sprintf(" param_2 = $%d", len(args)+1)
+		setClauses = append(setClauses, clause)
+		args = append(args, ur.Param2)
+	}
+	if ur.Param3 != "" {
+		clause := fmt.Sprintf(" param_3 = $%d", len(args)+1)
+		setClauses = append(setClauses, clause)
+		args = append(args, ur.Param3)
+	}
 
-	if len(args) == 0 {
+	if len(setClauses) == 0 || len(args) == 0 {
 		return fmt.Errorf("no update fields specified")
 	}
 
-	query += " where id = $" + fmt.Sprintf("%d", len(args)+1)
-	query += " and user_id = $" + fmt.Sprintf("%d", len(args)+2)
+	query := fmt.Sprintf(
+		"update outputs set %s where id = $%d and user_id = $%d",
+		strings.Join(setClauses, ", "),
+		len(args)+1,
+		len(args)+2,
+	)
 	args = append(args, id, userID)
 
 	_, err := s.db.Exec(query, args...)
@@ -562,6 +592,9 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		userID     string
 		outputName OutputName
 		listID     string
+		param1     string
+		param2     string
+		param3     string
 		createdAt  time.Time
 		updatedAt  time.Time
 	)
@@ -571,6 +604,9 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		&userID,
 		&outputName,
 		&listID,
+		&param1,
+		&param2,
+		&param3,
 		&createdAt,
 		&updatedAt,
 	)
@@ -578,5 +614,5 @@ func scanIntoOutput(rows *sql.Rows) (Output, error) {
 		return nil, err
 	}
 
-	return makeOutput(id, userID, outputName, listID, createdAt, updatedAt), nil
+	return makeOutput(id, userID, outputName, listID, param1, param2, param3, createdAt, updatedAt), nil
 }
