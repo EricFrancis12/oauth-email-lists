@@ -32,6 +32,34 @@ func (c Campaign) Link() (string, error) {
 	return fmt.Sprintf("%s//%s/c?c=%s", protocol, hostname, url.QueryEscape(oauthID)), nil
 }
 
+type DiscordOAuth2TokenResp struct {
+	TokenType    string `json:"token_type"`
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+}
+
+type DiscordProviderResp struct {
+	ID                   string  `json:"id"`
+	Username             string  `json:"username"`
+	Avatar               string  `json:"avatar"`
+	Discriminator        string  `json:"discriminator"`
+	PublicFlags          int     `json:"public_flags"`
+	Flags                int     `json:"flags"`
+	Banner               *string `json:"banner"`
+	AccentColor          *int    `json:"accent_color"`
+	GlobalName           *string `json:"global_name"`
+	AvatarDecorationData *string `json:"avatar_decoration_data"`
+	BannerColor          *string `json:"banner_color"`
+	Clan                 *string `json:"clan"`
+	MfaEnabled           bool    `json:"mfa_enabled"`
+	Locale               string  `json:"locale"`
+	PremiumType          int     `json:"premium_type"`
+	Email                string  `json:"email"`
+	Verified             bool    `json:"verified"`
+}
+
 type EmailList struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"userId"`
@@ -58,6 +86,16 @@ type EmailListCreationReq struct {
 
 type EmailListUpdateReq struct {
 	Name string `json:"name"`
+}
+
+type GoogleProviderResp struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Picture       string `json:"picture"`
 }
 
 type LoginInfo struct {
@@ -113,6 +151,11 @@ type TelegramOutput struct {
 	MsgFmt    string    `json:"msgFmt"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type ProviderResult struct {
+	Name      string `json:"name"`
+	EmailAddr string `json:"emailAddr"`
 }
 
 type Subscriber struct {
@@ -192,6 +235,8 @@ type UserUpdateReq struct {
 	Password string
 }
 
+const ContentTypeApplicationXwwwFormUrlEncoded string = "application/x-www-form-urlencoded"
+
 type CookieName string
 
 const (
@@ -207,6 +252,8 @@ const (
 	EnvCatchAllRedirectUrl string = "CATCH_ALL_REDIRECT_URL"
 	EnvCookieSecret        string = "COOKIE_SECRET"
 	EnvCryptoSecret        string = "CRYPTO_SECRET"
+	EnvDiscordClientID     string = "DISCORD_CLIENT_ID"
+	EnvDiscordClientSecret string = "DISCORD_CLIENT_SECRET"
 	EnvGoogleClientID      string = "GOOGLE_CLIENT_ID"
 	EnvGoogleClientSecret  string = "GOOGLE_CLIENT_Secret"
 	EnvHostname            string = "HOST_NAME"
@@ -221,11 +268,20 @@ const (
 )
 
 const (
+	FormFieldClientID       string = "client_id"
+	FormFieldClientSecret   string = "client_secret"
+	FormFieldCode           string = "code"
+	FormFieldGrantType      string = "grant_type"
+	FormFieldRedirectUri    string = "redirect_uri"
 	FormFieldText           string = "text"
 	FormFieldTelegramChatID string = "chat_id"
 )
 
-const HTTPHeaderContentType string = "Content-Type"
+const (
+	HTTPHeaderAcceptEncoding string = "Accept-Encoding"
+	HTTPHeaderAuthorization  string = "Authorization"
+	HTTPHeaderContentType    string = "Content-Type"
+)
 
 type OutputName string
 

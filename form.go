@@ -24,7 +24,7 @@ func (fdm FormDataMap) Upload(url string) error {
 		if clsr, ok := rdr.(io.Closer); ok {
 			defer clsr.Close()
 		}
-		// Add the video file
+		// Add the file
 		if file, ok := rdr.(*os.File); ok {
 			w, err := mpw.CreateFormFile(key, file.Name())
 			if err != nil {

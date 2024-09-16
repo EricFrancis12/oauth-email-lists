@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"time"
 )
 
@@ -33,7 +36,35 @@ func (dp DiscordProvider) Name() ProviderName {
 }
 
 func (dp DiscordProvider) Redirect(w http.ResponseWriter, r *http.Request) {
-	// TODO: ...
+	var (
+		clientID    = os.Getenv(EnvDiscordClientID)
+		protocol    = os.Getenv(EnvProtocol)
+		hostname    = os.Getenv(EnvHostname)
+		redirectUri = url.QueryEscape(fmt.Sprintf("%s//%s/callback/discord", protocol, hostname))
+	)
+
+	url := fmt.Sprintf(
+		"https://discord.com/oauth2/authorize?client_id=%s&response_type=code&redirect_uri=%s&scope=email+identify",
+		clientID,
+		redirectUri,
+	)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+func (dpr DiscordProviderResp) ToSubscriber(emailListID string) Subscriber {
+	return Subscriber{
+		ID:          NewUUID(),
+		EmailListID: emailListID,
+		Name:        dpr.Username,
+		EmailAddr:   dpr.Email,
+	}
+}
+
+func (dpr DiscordProviderResp) Result() ProviderResult {
+	return ProviderResult{
+		Name:      dpr.Username,
+		EmailAddr: dpr.Email,
+	}
 }
 
 type GoogleProvider struct{}
@@ -43,24 +74,22 @@ func (gp GoogleProvider) Name() ProviderName {
 }
 
 func (gp GoogleProvider) Redirect(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, config.Google().AuthCodeURL(googleOAuthStateString), http.StatusTemporaryRedirect)
+	url := config.Google().AuthCodeURL(googleOAuthStateString)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
-type GoogleProviderResult struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verified_email"`
-	Name          string `json:"name"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Picture       string `json:"picture"`
-}
-
-func (gpr GoogleProviderResult) ToSubscriber(emailListID string) Subscriber {
+func (gpr GoogleProviderResp) ToSubscriber(emailListID string) Subscriber {
 	return Subscriber{
 		ID:          NewUUID(),
 		EmailListID: emailListID,
 		Name:        gpr.Name,
 		EmailAddr:   gpr.Email,
+	}
+}
+
+func (gpr GoogleProviderResp) Result() ProviderResult {
+	return ProviderResult{
+		Name:      gpr.Name,
+		EmailAddr: gpr.Email,
 	}
 }

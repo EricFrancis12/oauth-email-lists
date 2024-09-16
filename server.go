@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/google/uuid"
@@ -154,40 +155,128 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 	provider.Redirect(w, r)
 }
 
+func makeProviderCampaignHandlerFunc(providerName ProviderName) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			outputIDs   = r.URL.Query()["o"]
+			redirectUrl = r.URL.Query().Get("r")
+		)
+
+		emailListID := mux.Vars(r)["emailListID"]
+		if emailListID == "" {
+			RedirectToCatchAllUrl(w, r)
+			return
+		}
+
+		provider := NewOAuthProvider(providerName)
+
+		pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
+		if err := pc.Set(w); err != nil {
+			RedirectToCatchAllUrl(w, r)
+			return
+		}
+
+		provider.Redirect(w, r)
+	}
+}
+
 func handleDiscordCampaign(w http.ResponseWriter, r *http.Request) {
-	// TODO: ...
+	makeProviderCampaignHandlerFunc(ProviderNameDiscord)(w, r)
 }
 
 func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
-	// TODO: ...
+	pc, err := ProviderCookieFrom(r)
+	if err != nil {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
+	RedirectVisitor(w, r, pc.RedirectUrl)
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		return
+	}
+
+	var (
+		protocol    = os.Getenv(EnvProtocol)
+		hostname    = os.Getenv(EnvHostname)
+		redirectUri = fmt.Sprintf("%s//%s/callback/discord", protocol, hostname)
+	)
+
+	formData := url.Values{}
+	formData.Set(FormFieldClientID, os.Getenv(EnvDiscordClientID))
+	formData.Set(FormFieldClientSecret, os.Getenv(EnvDiscordClientSecret))
+	formData.Set(FormFieldGrantType, "authorization_code")
+	formData.Set(FormFieldCode, code)
+	formData.Set(FormFieldRedirectUri, redirectUri)
+
+	encodedFormData := formData.Encode()
+
+	req, err := http.NewRequest("POST", "https://discord.com/api/oauth2/token", bytes.NewBufferString(encodedFormData))
+	if err != nil {
+		return
+	}
+	req.Header.Add(HTTPHeaderAcceptEncoding, ContentTypeApplicationXwwwFormUrlEncoded)
+	req.Header.Add(HTTPHeaderContentType, ContentTypeApplicationXwwwFormUrlEncoded)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	var tokenResp DiscordOAuth2TokenResp
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&tokenResp); err != nil {
+		return
+	}
+
+	req2, err := http.NewRequest("GET", "https://discord.com/api/v10/users/@me", nil)
+	if err != nil {
+		return
+	}
+	req2.Header.Add(HTTPHeaderAuthorization, "Bearer "+tokenResp.AccessToken)
+
+	resp2, err := client.Do(req2)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp2.Body)
+	if err != nil {
+		return
+	}
+
+	var dpr DiscordProviderResp
+	if err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(&dpr); err != nil {
+		return
+	}
+
+	pc.Handle(dpr.Result())
 }
 
 func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
-	var (
-		outputIDs   = r.URL.Query()["o"]
-		redirectUrl = r.URL.Query().Get("r")
-	)
-
-	emailListID := mux.Vars(r)["emailListID"]
-	if emailListID == "" {
-		RedirectToCatchAllUrl(w, r)
-		return
-	}
-
-	provider := NewOAuthProvider(ProviderNameGoogle)
-
-	pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
-	if err := pc.Set(w); err != nil {
-		RedirectToCatchAllUrl(w, r)
-		return
-	}
-
-	provider.Redirect(w, r)
+	makeProviderCampaignHandlerFunc(ProviderNameGoogle)(w, r)
 }
 
 var googleOAuthStateString = uuid.NewString()
 
 func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
+	pc, err := ProviderCookieFrom(r)
+	if err != nil {
+		RedirectToCatchAllUrl(w, r)
+		return
+	}
+
+	RedirectVisitor(w, r, pc.RedirectUrl)
+
 	state := r.URL.Query().Get("state")
 	if state != googleOAuthStateString {
 		return
@@ -213,42 +302,12 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var gpr GoogleProviderResult
+	var gpr GoogleProviderResp
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&gpr); err != nil {
 		return
 	}
 
-	pc, err := ProviderCookieFrom(r)
-	if err != nil {
-		return
-	}
-
-	go RedirectVisitor(w, r, pc.RedirectUrl)
-
-	emailList, err := storage.GetEmailListByID(pc.EmailListID)
-	if err != nil {
-		return
-	}
-	userID := emailList.UserID
-
-	go func() {
-		for _, outputID := range pc.OutputIDs {
-			output, err := storage.GetOutputByIDAndUserID(outputID, userID)
-			if err != nil {
-				continue
-			}
-			output.Handle(gpr.Email, gpr.Name)
-		}
-	}()
-
-	cr := SubscriberCreationReq{
-		EmailListID:        pc.EmailListID,
-		UserID:             userID,
-		SourceProviderName: pc.ProviderName,
-		Name:               gpr.Name,
-		EmailAddr:          gpr.Email,
-	}
-	storage.InsertNewSubscriber(cr)
+	pc.Handle(gpr.Result())
 }
 
 func handleMakeCampaign(w http.ResponseWriter, r *http.Request) {

@@ -135,6 +135,35 @@ func (cn CookieName) SetEncrypted(w http.ResponseWriter, value string) error {
 	return nil
 }
 
+func (pc ProviderCookie) Handle(pr ProviderResult) error {
+	emailList, err := storage.GetEmailListByID(pc.EmailListID)
+	if err != nil {
+		return err
+	}
+	userID := emailList.UserID
+
+	go func() {
+		for _, outputID := range pc.OutputIDs {
+			output, err := storage.GetOutputByIDAndUserID(outputID, userID)
+			if err != nil {
+				continue
+			}
+			output.Handle(pr.EmailAddr, pr.Name)
+		}
+	}()
+
+	cr := SubscriberCreationReq{
+		EmailListID:        pc.EmailListID,
+		UserID:             userID,
+		SourceProviderName: pc.ProviderName,
+		Name:               pr.Name,
+		EmailAddr:          pr.EmailAddr,
+	}
+
+	_, err = storage.InsertNewSubscriber(cr)
+	return err
+}
+
 func setCookie(w http.ResponseWriter, name string, value string) {
 	cookie := &http.Cookie{
 		Name:     name,
