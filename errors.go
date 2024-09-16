@@ -17,14 +17,16 @@ func outputIDNotProvided() error {
 	return fmt.Errorf("output ID not provided")
 }
 
+func invalidOauthID() error {
+	return fmt.Errorf("invalid oauthID")
+}
+
 func missingEnv(envVars ...string) error {
 	if len(envVars) == 0 {
 		return fmt.Errorf("unknown missingEnv error")
 	}
-
-	var err = fmt.Errorf("missing required environment variable: %s", envVars[0])
-	if len(envVars) > 1 {
-		err = fmt.Errorf("missing required environment variables: %s", strings.Join(envVars, ", "))
+	if len(envVars) == 1 {
+		return fmt.Errorf("missing required environment variable: %s", envVars[0])
 	}
-	return err
+	return fmt.Errorf("missing required environment variables: %s", strings.Join(envVars, ", "))
 }

@@ -89,7 +89,11 @@ func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 
 	encodedFormData := formData.Encode()
 
-	req, err := http.NewRequest("POST", "https://www.aweber.com/scripts/addlead.pl", bytes.NewBufferString(encodedFormData))
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"https://www.aweber.com/scripts/addlead.pl",
+		bytes.NewBufferString(encodedFormData),
+	)
 	if err != nil {
 		return err
 	}
@@ -164,6 +168,6 @@ func (to TelegramOutput) Handle(emailAddr string, name string) error {
 func SendMessageToTelegramChannel(botID string, chatId string, message string) error {
 	fdm := make(FormDataMap)
 	fdm[FormFieldTelegramChatID] = strings.NewReader(chatId)
-	fdm[FormFieldText] = strings.NewReader(chatId)
+	fdm[FormFieldText] = strings.NewReader(message)
 	return fdm.Upload(TelegramAPIMessageUrl(botID))
 }

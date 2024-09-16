@@ -42,7 +42,7 @@ func useProtectedRoute(w http.ResponseWriter, r *http.Request) (*User, error) {
 
 	if token != nil && token.Valid {
 		claims := token.Claims.(jwt.MapClaims)
-		userID := claims["userID"].(string)
+		userID := claims[JwtClaimUserID].(string)
 
 		user, err := storage.GetUserByID(userID)
 		if err != nil {
@@ -112,8 +112,8 @@ func Logout(w http.ResponseWriter) {
 
 func newJWTStr(user *User) (string, error) {
 	claims := &jwt.MapClaims{
-		"expiresAt": jwtExpiry,
-		"userID":    user.ID,
+		JwtClaimExpiresAt: jwtExpiry,
+		JwtClaimUserID:    user.ID,
 	}
 
 	secret := os.Getenv(EnvJWTSecret)
@@ -125,7 +125,7 @@ func validateJWT(tokenStr string) (*jwt.Token, error) {
 	jwtSecret := os.Getenv(EnvJWTSecret)
 	return jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[JwtHeaderAlg])
 		}
 
 		return []byte(jwtSecret), nil

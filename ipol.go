@@ -53,7 +53,7 @@ func (s *StrIpol) Eval(str string) string {
 
 func (to TelegramOutput) StrIpolMap(emailAddr string, name string) map[string]string {
 	return map[string]string{
-		"emailAddr": emailAddr,
-		"name":      name,
+		StrIpolEmailAddr: emailAddr,
+		StrIpolName:      name,
 	}
 }

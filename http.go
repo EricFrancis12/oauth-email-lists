@@ -26,7 +26,7 @@ func CatchAllUrl() string {
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HTTPHeaderContentType, ContentTypeApplicationJson)
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
@@ -37,4 +37,8 @@ func WriteUnauthorized(w http.ResponseWriter) error {
 
 func TelegramAPIMessageUrl(botID string) string {
 	return fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botID)
+}
+
+func BearerHeader(value string) string {
+	return "Bearer " + value
 }

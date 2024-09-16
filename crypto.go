@@ -87,13 +87,13 @@ func (o OAuthDecEncoder) Decode(oauthID string) (
 
 func Encrypt(secret, value string) (string, error) {
 	claims := jwt.MapClaims{
-		"data": value,
+		JwtClaimData: value,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("signing token: %w", err)
+		return "", fmt.Errorf("error signing token: %w", err)
 	}
 
 	return signedToken, nil
@@ -102,7 +102,7 @@ func Encrypt(secret, value string) (string, error) {
 func Decrypt(secret, tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[JwtHeaderAlg])
 		}
 		return []byte(secret), nil
 	})
@@ -113,7 +113,7 @@ func Decrypt(secret, tokenString string) (string, error) {
 
 	// Extract claims from the token
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if value, ok := claims["data"].(string); ok {
+		if value, ok := claims[JwtClaimData].(string); ok {
 			return value, nil
 		}
 		return "", fmt.Errorf("value not found in claims")
@@ -151,8 +151,4 @@ func validDelim(delim string) bool {
 
 func NewUUID() string {
 	return uuid.NewString()
-}
-
-func invalidOauthID() error {
-	return fmt.Errorf("invalid oauthID")
 }

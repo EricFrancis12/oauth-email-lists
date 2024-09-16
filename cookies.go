@@ -169,7 +169,7 @@ func setCookie(w http.ResponseWriter, name string, value string) {
 		Name:     name,
 		Value:    value,
 		Path:     "/",
-		MaxAge:   0, // Zero means no max age
+		MaxAge:   cookieMaxAge,
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,

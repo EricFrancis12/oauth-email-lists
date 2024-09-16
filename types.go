@@ -235,7 +235,10 @@ type UserUpdateReq struct {
 	Password string
 }
 
-const ContentTypeApplicationXwwwFormUrlEncoded string = "application/x-www-form-urlencoded"
+const (
+	ContentTypeApplicationJson               string = "application/json"
+	ContentTypeApplicationXwwwFormUrlEncoded string = "application/x-www-form-urlencoded"
+)
 
 type CookieName string
 
@@ -281,10 +284,28 @@ const (
 )
 
 const (
+	GoogleOauthScopeEmail   string = "email"
+	GoogleOauthScopeProfile string = "profile"
+)
+
+const (
 	HTTPHeaderAcceptEncoding string = "Accept-Encoding"
 	HTTPHeaderAuthorization  string = "Authorization"
 	HTTPHeaderContentType    string = "Content-Type"
 )
+
+const (
+	JwtClaimExpiresAt string = "expiresAt"
+	JwtClaimData      string = "data"
+	JwtClaimUserID    string = "userID"
+)
+
+const (
+	MuxVarUserID   string = "userID"
+	MuxVarOutputID string = "outputID"
+)
+
+const JwtHeaderAlg string = "alg"
 
 type OutputName string
 
@@ -293,17 +314,6 @@ const (
 	OutputNameResend   OutputName = "resend"
 	OutputNameTelegram OutputName = "telegram"
 )
-
-var outputNames = []OutputName{}
-
-func ToOutputName(str string) (OutputName, error) {
-	for _, on := range outputNames {
-		if string(on) == str {
-			return on, nil
-		}
-	}
-	return "", fmt.Errorf("invalid OutputName %s", str)
-}
 
 type ProviderName string
 
@@ -326,4 +336,13 @@ func ToProviderName(str string) (ProviderName, error) {
 	return "", fmt.Errorf("invalid ProviderName %s", str)
 }
 
-const QueryParamC string = "c"
+const (
+	QueryParamC     string = "c"
+	QueryParamCode  string = "code"
+	QueryParamState string = "state"
+)
+
+const (
+	StrIpolEmailAddr string = "emailAddr"
+	StrIpolName      string = "name"
+)

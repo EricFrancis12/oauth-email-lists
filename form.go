@@ -46,7 +46,7 @@ func (fdm FormDataMap) Upload(url string) error {
 	}
 	mpw.Close()
 
-	req, err := http.NewRequest("POST", url, &b)
+	req, err := http.NewRequest(http.MethodPost, url, &b)
 	if err != nil {
 		return err
 	}

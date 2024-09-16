@@ -12,7 +12,7 @@ func fileExists(filepath string) bool {
 	return err == nil
 }
 
-func FallbackIfEmpty(value string, fallback string) string {
+func fallbackIfEmpty(value string, fallback string) string {
 	if value == "" {
 		return fallback
 	}

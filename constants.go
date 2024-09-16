@@ -1,5 +1,7 @@
 package main
 
+const cookieMaxAge = 0
+
 const (
 	filePathEnv       = ".env"
 	filePathLoginPage = "assets/login.html"

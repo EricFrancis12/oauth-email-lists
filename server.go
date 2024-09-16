@@ -90,7 +90,7 @@ func (s *Server) Run() error {
 	router.HandleFunc("/", handleCatchAll)
 	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
 
-	listenAddr := FallbackIfEmpty(s.ListenAddr, defaultListenAddr)
+	listenAddr := fallbackIfEmpty(s.ListenAddr, defaultListenAddr)
 	fmt.Printf("Server running at %s\n", listenAddr)
 	return http.ListenAndServe(listenAddr, router)
 }
@@ -193,7 +193,7 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 
 	RedirectVisitor(w, r, pc.RedirectUrl)
 
-	code := r.URL.Query().Get("code")
+	code := r.URL.Query().Get(QueryParamCode)
 	if code == "" {
 		return
 	}
@@ -213,7 +213,11 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 
 	encodedFormData := formData.Encode()
 
-	req, err := http.NewRequest("POST", "https://discord.com/api/oauth2/token", bytes.NewBufferString(encodedFormData))
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"https://discord.com/api/oauth2/token",
+		bytes.NewBufferString(encodedFormData),
+	)
 	if err != nil {
 		return
 	}
@@ -237,11 +241,11 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req2, err := http.NewRequest("GET", "https://discord.com/api/v10/users/@me", nil)
+	req2, err := http.NewRequest(http.MethodGet, "https://discord.com/api/v10/users/@me", nil)
 	if err != nil {
 		return
 	}
-	req2.Header.Add(HTTPHeaderAuthorization, "Bearer "+tokenResp.AccessToken)
+	req2.Header.Add(HTTPHeaderAuthorization, BearerHeader(tokenResp.AccessToken))
 
 	resp2, err := client.Do(req2)
 	if err != nil {
@@ -277,14 +281,14 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 
 	RedirectVisitor(w, r, pc.RedirectUrl)
 
-	state := r.URL.Query().Get("state")
+	state := r.URL.Query().Get(QueryParamState)
 	if state != googleOAuthStateString {
 		return
 	}
 
 	googleOauthConfig := config.Google()
 
-	code := r.URL.Query().Get("code")
+	code := r.URL.Query().Get(QueryParamCode)
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		return
@@ -354,7 +358,7 @@ func handleGetAllUsers(w http.ResponseWriter, _ *http.Request) {
 }
 
 func handleGetUserByID(w http.ResponseWriter, r *http.Request) {
-	userID := mux.Vars(r)["userID"]
+	userID := mux.Vars(r)[MuxVarUserID]
 	if userID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
@@ -370,7 +374,7 @@ func handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpdateUserByID(w http.ResponseWriter, r *http.Request) {
-	userID := mux.Vars(r)["userID"]
+	userID := mux.Vars(r)[MuxVarUserID]
 	if userID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
@@ -392,7 +396,7 @@ func handleUpdateUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
-	userID := mux.Vars(r)["userID"]
+	userID := mux.Vars(r)[MuxVarUserID]
 	if userID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
@@ -567,7 +571,7 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputID := mux.Vars(r)["outputID"]
+	outputID := mux.Vars(r)[MuxVarOutputID]
 	if outputID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
@@ -593,7 +597,7 @@ func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputID := mux.Vars(r)["outputID"]
+	outputID := mux.Vars(r)[MuxVarOutputID]
 	if outputID == "" {
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
