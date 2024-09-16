@@ -4,16 +4,25 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func IsRootUser(user *User) bool {
-	if user == nil {
-		return false
+func NewUser(name string, password string) (*User, error) {
+	hpw, err := hashPassword(password)
+	if err != nil {
+		return nil, err
 	}
-	return user.Name == os.Getenv(EnvRootUsername) && user.HashedPassword == os.Getenv(EnvRootPassword)
+	now := time.Now()
+	return &User{
+		ID:             NewUUID(),
+		Name:           name,
+		HashedPassword: hpw,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}, nil
 }
 
 func NewRootUser(username string, password string) (*User, error) {
@@ -27,6 +36,13 @@ func NewRootUser(username string, password string) (*User, error) {
 	}
 	user.ID = rootUserID
 	return user, nil
+}
+
+func IsRootUser(user *User) bool {
+	if user == nil {
+		return false
+	}
+	return user.Name == os.Getenv(EnvRootUsername) && user.HashedPassword == os.Getenv(EnvRootPassword)
 }
 
 func useProtectedRoute(w http.ResponseWriter, r *http.Request) (*User, error) {

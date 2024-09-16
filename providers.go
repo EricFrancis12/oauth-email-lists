@@ -93,3 +93,12 @@ func (gpr GoogleProviderResp) Result() ProviderResult {
 		EmailAddr: gpr.Email,
 	}
 }
+
+func ToProviderName(str string) (ProviderName, error) {
+	for _, pn := range providerNames {
+		if string(pn) == str {
+			return pn, nil
+		}
+	}
+	return "", fmt.Errorf("invalid ProviderName %s", str)
+}

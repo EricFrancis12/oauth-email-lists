@@ -90,9 +90,8 @@ func (s *Server) Run() error {
 	router.HandleFunc("/", handleCatchAll)
 	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
 
-	listenAddr := fallbackIfEmpty(s.ListenAddr, defaultListenAddr)
-	fmt.Printf("Server running at %s\n", listenAddr)
-	return http.ListenAndServe(listenAddr, router)
+	fmt.Printf("Server running at %s\n", s.ListenAddr)
+	return http.ListenAndServe(s.ListenAddr, router)
 }
 
 func handleGetLogin(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +206,7 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	formData := url.Values{}
 	formData.Set(FormFieldClientID, os.Getenv(EnvDiscordClientID))
 	formData.Set(FormFieldClientSecret, os.Getenv(EnvDiscordClientSecret))
-	formData.Set(FormFieldGrantType, "authorization_code")
+	formData.Set(FormFieldGrantType, FormValueAuthorizationCode)
 	formData.Set(FormFieldCode, code)
 	formData.Set(FormFieldRedirectUri, redirectUri)
 

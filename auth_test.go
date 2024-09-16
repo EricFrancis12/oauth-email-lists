@@ -8,7 +8,7 @@ import (
 )
 
 func TestRootUser(t *testing.T) {
-	assert.Nil(t, SafeLoadEnvs(filePathEnv))
+	assert.Nil(t, safeLoadEnvs(filePathEnv))
 
 	var (
 		rootUsername = os.Getenv(EnvRootUsername)

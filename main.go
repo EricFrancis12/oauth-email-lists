@@ -13,7 +13,7 @@ var (
 )
 
 func main() {
-	if err := SafeLoadEnvs(filePathEnv); err != nil {
+	if err := safeLoadEnvs(filePathEnv); err != nil {
 		log.Fatal(err)
 	}
 
@@ -34,11 +34,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server := NewServer(mustFmtPort(os.Getenv(EnvPort)))
+	listenAddr := fmtPort(fallbackIfEmpty(os.Getenv(EnvPort), defaultListenAddr))
+	server := NewServer(listenAddr)
 	log.Fatal(server.Run())
 }
 
-func SafeLoadEnvs(filenames ...string) error {
+func safeLoadEnvs(filenames ...string) error {
 	validFilenames := []string{}
 	for _, fn := range filenames {
 		if fileExists(fn) {
@@ -51,10 +52,7 @@ func SafeLoadEnvs(filenames ...string) error {
 	return godotenv.Load(validFilenames...)
 }
 
-func mustFmtPort(port string) string {
-	if port == "" {
-		panic("argument port is missing")
-	}
+func fmtPort(port string) string {
 	if string(port[0]) == ":" {
 		return port
 	}

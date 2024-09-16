@@ -210,21 +210,6 @@ type User struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
-func NewUser(name string, password string) (*User, error) {
-	hpw, err := hashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now()
-	return &User{
-		ID:             NewUUID(),
-		Name:           name,
-		HashedPassword: hpw,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}, nil
-}
-
 type UserCreationReq struct {
 	Name     string
 	Password string
@@ -283,6 +268,8 @@ const (
 	FormFieldTelegramChatID string = "chat_id"
 )
 
+const FormValueAuthorizationCode string = "authorization_code"
+
 const (
 	GoogleOauthScopeEmail   string = "email"
 	GoogleOauthScopeProfile string = "profile"
@@ -325,15 +312,6 @@ const (
 var providerNames = []ProviderName{
 	ProviderNameDiscord,
 	ProviderNameGoogle,
-}
-
-func ToProviderName(str string) (ProviderName, error) {
-	for _, pn := range providerNames {
-		if string(pn) == str {
-			return pn, nil
-		}
-	}
-	return "", fmt.Errorf("invalid ProviderName %s", str)
 }
 
 const (
