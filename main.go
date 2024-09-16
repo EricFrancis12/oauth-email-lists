@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	config  = NewConfig()
 	decenc  *OAuthDecEncoder
 	storage *Storage
 )

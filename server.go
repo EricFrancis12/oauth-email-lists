@@ -286,7 +286,7 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	googleOauthConfig := config.Google()
+	googleOauthConfig := GoogleConfig()
 
 	code := r.URL.Query().Get(QueryParamCode)
 	token, err := googleOauthConfig.Exchange(context.Background(), code)

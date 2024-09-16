@@ -8,13 +8,7 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-type Config struct{}
-
-func NewConfig() *Config {
-	return &Config{}
-}
-
-func (c Config) Google() *oauth2.Config {
+func GoogleConfig() *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     os.Getenv(EnvGoogleClientID),
 		ClientSecret: os.Getenv(EnvGoogleClientSecret),
