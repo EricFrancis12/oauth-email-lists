@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -79,8 +82,30 @@ func (ao AWeberOutput) GetUserID() string {
 }
 
 func (ao AWeberOutput) Handle(emailAddr string, name string) error {
-	// TODO: ...
-	fmt.Println("~ AWeberOutput.Handle() called")
+	formData := url.Values{}
+	formData.Set(FormFieldListName, ao.ListID)
+	formData.Set(FormFieldName, name)
+	formData.Set(FormFieldEmail, emailAddr)
+
+	encodedFormData := formData.Encode()
+
+	req, err := http.NewRequest("POST", "https://www.aweber.com/scripts/addlead.pl", bytes.NewBufferString(encodedFormData))
+	if err != nil {
+		return err
+	}
+	req.Header.Add(HTTPHeaderAcceptEncoding, ContentTypeApplicationXwwwFormUrlEncoded)
+	req.Header.Add(HTTPHeaderContentType, ContentTypeApplicationXwwwFormUrlEncoded)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("received %d status code", resp.StatusCode)
+	}
+
 	return nil
 }
 
