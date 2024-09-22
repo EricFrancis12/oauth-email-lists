@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	if err := safeLoadEnvs(filePathEnvLocal, filePathEnv); err != nil {
+	if err := safeLoadEnvs(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -46,11 +46,18 @@ func main() {
 	}
 }
 
-func safeLoadEnvs(filenames ...string) error {
+func envFilePathsInLoadOrder() []string {
+	return []string{
+		filePathEnvLocal,
+		filePathEnv,
+	}
+}
+
+func safeLoadEnvs() error {
 	validFilenames := []string{}
-	for _, fn := range filenames {
-		if fileExists(fn) {
-			validFilenames = append(validFilenames, fn)
+	for _, filePath := range envFilePathsInLoadOrder() {
+		if fileExists(filePath) {
+			validFilenames = append(validFilenames, filePath)
 		}
 	}
 	if len(validFilenames) == 0 {
