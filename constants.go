@@ -4,6 +4,7 @@ const cookieMaxAge = 0
 
 const (
 	filePathEnv       = ".env"
+	filePathEnvLocal  = ".env.local"
 	filePathLoginPage = "assets/login.html"
 )
 

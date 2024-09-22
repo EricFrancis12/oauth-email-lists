@@ -1,0 +1,25 @@
+service: oauth-email-lists
+frameworkVersion: ">=4.4.0"
+provider:
+  name: aws
+  runtime: provided.al2
+  region: us-east-1
+  stage: ${opt:stage}
+plugins:
+  - serverless-dotenv-plugin
+custom:
+  dotenv:
+    path: ./.env
+functions:
+  api:
+    handler: bootstrap
+    environment:
+      RUNNING_FROM_SERVERLESS: "true"
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+package:
+  patterns:
+    - "!*/**"
+    - bootstrap

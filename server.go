@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/awslabs/aws-lambda-go-api-proxy/core"
+	muxadapter "github.com/awslabs/aws-lambda-go-api-proxy/gorillamux"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -17,13 +20,25 @@ import (
 const defaultListenAddr string = ":6004"
 
 type Server struct {
-	ListenAddr string
+	ListenAddr    string
+	router        *mux.Router
+	lambdaAdapter *muxadapter.GorillaMuxAdapter
 }
 
 func NewServer(listenAddr string) *Server {
-	return &Server{
+	router := mux.NewRouter()
+	addRoutes(router)
+
+	server := &Server{
 		ListenAddr: listenAddr,
+		router:     router,
 	}
+
+	if runningFromServerless() {
+		server.lambdaAdapter = muxadapter.New(server.router)
+	}
+
+	return server
 }
 
 type JsonResponse struct {
@@ -44,9 +59,7 @@ func NewJsonResponse(success bool, data any, err error) *JsonResponse {
 	}
 }
 
-func (s *Server) Run() error {
-	router := mux.NewRouter()
-
+func addRoutes(router *mux.Router) {
 	// Auth
 	router.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
 	router.HandleFunc("/login", handlePostLogin).Methods(http.MethodPost)
@@ -89,9 +102,20 @@ func (s *Server) Run() error {
 	router.HandleFunc("/healthz", handleHealthz)
 	router.HandleFunc("/", handleCatchAll)
 	router.HandleFunc(`/{catchAll:[a-zA-Z0-9=\-\/.]+}`, handleCatchAll)
+}
+
+func (s *Server) lambdaHandler(ctx context.Context, event core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error) {
+	return s.lambdaAdapter.ProxyWithContext(ctx, event)
+}
+
+func (s *Server) Run() error {
+	if runningFromServerless() {
+		lambda.Start(s.lambdaHandler)
+		return nil
+	}
 
 	fmt.Printf("Server running at %s\n", s.ListenAddr)
-	return http.ListenAndServe(s.ListenAddr, router)
+	return http.ListenAndServe(s.ListenAddr, s.router)
 }
 
 func handleGetLogin(w http.ResponseWriter, r *http.Request) {
@@ -632,4 +656,11 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 func handleCatchAll(w http.ResponseWriter, r *http.Request) {
 	RedirectToCatchAllUrl(w, r)
+}
+
+func runningFromServerless() bool {
+	if os.Getenv(EnvRunningFromServerless) == StringTrue {
+		return true
+	}
+	return false
 }

@@ -1,0 +1,15 @@
+{
+  "name": "oauth-email-lists",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000o\u0000a\u0000u\u0000t\u0000h\u0000-\u0000e\u0000m\u0000a\u0000i\u0000l\u0000-\u0000l\u0000i\u0000s\u0000t\u0000s\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless-dotenv-plugin": "^6.0.0"
+  }
+}

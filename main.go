@@ -9,11 +9,12 @@ import (
 
 var (
 	decenc  *OAuthDecEncoder
+	server  *Server
 	storage *Storage
 )
 
-func main() {
-	if err := safeLoadEnvs(filePathEnv); err != nil {
+func init() {
+	if err := safeLoadEnvs(filePathEnvLocal, filePathEnv); err != nil {
 		log.Fatal(err)
 	}
 
@@ -35,8 +36,14 @@ func main() {
 	}
 
 	listenAddr := fmtPort(fallbackIfEmpty(os.Getenv(EnvPort), defaultListenAddr))
-	server := NewServer(listenAddr)
-	log.Fatal(server.Run())
+	server = NewServer(listenAddr)
+}
+
+func main() {
+	err := server.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func safeLoadEnvs(filenames ...string) error {

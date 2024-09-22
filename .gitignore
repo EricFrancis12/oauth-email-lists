@@ -1,3 +1,6 @@
+.serverless
+node_modules
+
 # env
 **/.env
 **/.env.local
@@ -7,3 +10,4 @@
 **/*.mti
 **/bin
 **/oauth-email-lists
+**/bootstrap
