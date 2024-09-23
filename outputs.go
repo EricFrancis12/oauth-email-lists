@@ -25,12 +25,17 @@ func makeOutput(
 ) Output {
 	switch outputName {
 	case OutputNameAWeber:
+		omitAdTracking := false
+		if param1 == StringTrue {
+			omitAdTracking = true
+		}
 		return AWeberOutput{
-			ID:        id,
-			UserID:    userID,
-			ListID:    listID,
-			CreatedAt: createdAt,
-			UpdatedAt: updatedAt,
+			ID:             id,
+			UserID:         userID,
+			ListID:         listID,
+			OmitAdTracking: omitAdTracking,
+			CreatedAt:      createdAt,
+			UpdatedAt:      updatedAt,
 		}
 	case OutputNameResend:
 		return ResendOutput{
@@ -83,9 +88,14 @@ func (ao AWeberOutput) GetUserID() string {
 
 func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 	formData := url.Values{}
+
 	formData.Set(FormFieldListName, ao.ListID)
 	formData.Set(FormFieldName, name)
 	formData.Set(FormFieldEmail, emailAddr)
+
+	if !ao.OmitAdTracking {
+		formData.Set(FormFieldAdTracking, adTrackingAppName)
+	}
 
 	encodedFormData := formData.Encode()
 
