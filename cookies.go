@@ -51,14 +51,8 @@ func ProviderCookieFrom(r *http.Request) (*ProviderCookie, error) {
 		return nil, err
 	}
 
-	createdAtStr, err := CookieNameCreatedAt.DecryptFrom(r)
-	if err != nil {
-		return nil, err
-	}
-	createdAt, err := time.Parse(timestampLayout, createdAtStr)
-	if err != nil {
-		return nil, err
-	}
+	createdAtStr, _ := CookieNameCreatedAt.DecryptFrom(r)
+	createdAt, _ := time.Parse(timestampLayout, createdAtStr)
 
 	return &ProviderCookie{
 		EmailListID:  emailListID,

@@ -14,6 +14,10 @@ var (
 )
 
 func init() {
+	if runningFromServerless() {
+		log.Printf("Cold start")
+	}
+
 	if err := safeLoadEnvs(); err != nil {
 		log.Fatal(err)
 	}
