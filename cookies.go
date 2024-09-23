@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -136,15 +137,21 @@ func (pc ProviderCookie) Handle(pr ProviderResult) error {
 	}
 	userID := emailList.UserID
 
-	go func() {
-		for _, outputID := range pc.OutputIDs {
+	var wg sync.WaitGroup
+	wg.Add(len(pc.OutputIDs))
+
+	for _, outputID := range pc.OutputIDs {
+		go func() {
+			defer wg.Done()
+
 			output, err := storage.GetOutputByIDAndUserID(outputID, userID)
 			if err != nil {
-				continue
+				return
 			}
+
 			output.Handle(pr.EmailAddr, pr.Name)
-		}
-	}()
+		}()
+	}
 
 	cr := SubscriberCreationReq{
 		EmailListID:        pc.EmailListID,
@@ -155,6 +162,9 @@ func (pc ProviderCookie) Handle(pr ProviderResult) error {
 	}
 
 	_, err = storage.InsertNewSubscriber(cr)
+
+	wg.Wait()
+
 	return err
 }
 

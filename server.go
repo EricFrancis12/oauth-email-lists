@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -120,6 +121,7 @@ func (s *Server) Run() error {
 func handleGetLogin(w http.ResponseWriter, r *http.Request) {
 	b, err := os.ReadFile(filePathLoginPage)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -130,17 +132,20 @@ func handlePostLogin(w http.ResponseWriter, r *http.Request) {
 	var li LoginInfo
 	err := json.NewDecoder(r.Body).Decode(&li)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	user, err := storage.GetUserByUsernameAndPassword(li.Username, li.Password)
 	if err != nil || user == nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	if err := Login(w, user); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -164,12 +169,14 @@ func handleCampaign(w http.ResponseWriter, r *http.Request) {
 	// oauthID can be decoded to get the emailListID, providerName, and outputIDs
 	emailListID, provider, outputIDs, redirectUrl, err := decenc.Decode(oauthID)
 	if err != nil {
+		log.Print(err)
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
 
 	pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
 	if err := pc.Set(w); err != nil {
+		log.Print(err)
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
@@ -194,6 +201,7 @@ func makeProviderCampaignHandlerFunc(providerName ProviderName) http.HandlerFunc
 
 		pc := NewProviderCookie(emailListID, provider.Name(), outputIDs, redirectUrl)
 		if err := pc.Set(w); err != nil {
+			log.Print(err)
 			RedirectToCatchAllUrl(w, r)
 			return
 		}
@@ -209,6 +217,7 @@ func handleDiscordCampaign(w http.ResponseWriter, r *http.Request) {
 func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	pc, err := ProviderCookieFrom(r)
 	if err != nil {
+		log.Print(err)
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
@@ -241,6 +250,7 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 		bytes.NewBufferString(encodedFormData),
 	)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	req.Header.Add(HTTPHeaderAcceptEncoding, ContentTypeApplicationXwwwFormUrlEncoded)
@@ -249,6 +259,7 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	defer resp.Body.Close()
@@ -260,28 +271,33 @@ func handleDiscordCampaignCallback(w http.ResponseWriter, r *http.Request) {
 
 	var tokenResp DiscordOAuth2TokenResp
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&tokenResp); err != nil {
+		log.Print(err)
 		return
 	}
 
 	req2, err := http.NewRequest(http.MethodGet, "https://discord.com/api/v10/users/@me", nil)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	req2.Header.Add(HTTPHeaderAuthorization, BearerHeader(tokenResp.AccessToken))
 
 	resp2, err := client.Do(req2)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp2.Body)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 
 	var dpr DiscordProviderResp
 	if err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(&dpr); err != nil {
+		log.Print(err)
 		return
 	}
 
@@ -295,6 +311,7 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	pc, err := ProviderCookieFrom(r)
 	if err != nil {
+		log.Print(err)
 		RedirectToCatchAllUrl(w, r)
 		return
 	}
@@ -311,23 +328,27 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get(QueryParamCode)
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 
 	client := googleOauthConfig.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Print(err)
 		return
 	}
 
 	var gpr GoogleProviderResp
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&gpr); err != nil {
+		log.Print(err)
 		return
 	}
 
@@ -338,12 +359,14 @@ func handleMakeCampaign(w http.ResponseWriter, r *http.Request) {
 	var c Campaign
 	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	link, err := c.Link()
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -355,6 +378,7 @@ func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
 	var cr UserCreationReq
 	err := json.NewDecoder(r.Body).Decode(&cr)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -371,6 +395,7 @@ func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
 func handleGetAllUsers(w http.ResponseWriter, _ *http.Request) {
 	users, err := storage.GetAllUsers()
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -380,12 +405,14 @@ func handleGetAllUsers(w http.ResponseWriter, _ *http.Request) {
 func handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)[MuxVarUserID]
 	if userID == "" {
+		log.Print(MuxVarUserID + " is empty")
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, userIDNotProvided()))
 		return
 	}
 
 	user, err := storage.GetUserByID(userID)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -403,11 +430,13 @@ func handleUpdateUserByID(w http.ResponseWriter, r *http.Request) {
 	var ur UserUpdateReq
 	err := json.NewDecoder(r.Body).Decode(&ur)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
 
 	if err := storage.UpdateUserByID(userID, ur); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -423,6 +452,7 @@ func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := storage.DeleteUserByID(userID); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -433,12 +463,14 @@ func handleDeleteUserByID(w http.ResponseWriter, r *http.Request) {
 func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
 
 	var cr EmailListCreationReq
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -448,6 +480,7 @@ func handleInsertNewEmailListByUserID(w http.ResponseWriter, r *http.Request) {
 
 	emailList, err := storage.InsertNewEmailList(cr)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -463,6 +496,7 @@ func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
@@ -473,6 +507,7 @@ func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
 		emailLists, err = storage.GetAllEmailListsByUserID(user.ID)
 	}
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -483,12 +518,14 @@ func handleGetAllEmailListsByUserID(w http.ResponseWriter, r *http.Request) {
 func handleInsertNewSubscriberByEmailListIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
 
 	var cr SubscriberCreationReq
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -498,6 +535,7 @@ func handleInsertNewSubscriberByEmailListIDAndUserID(w http.ResponseWriter, r *h
 
 	subscriber, err := storage.InsertNewSubscriber(cr)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -513,6 +551,7 @@ func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
@@ -523,6 +562,7 @@ func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
 		subscribers, err = storage.GetAllSubscribersByUserID(user.ID)
 	}
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -533,12 +573,14 @@ func handleGetAllSubscribersByUserID(w http.ResponseWriter, r *http.Request) {
 func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
 
 	var cr OutputCreationReq
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -548,6 +590,7 @@ func handleInsertNewOutputByUserID(w http.ResponseWriter, r *http.Request) {
 
 	output, err := storage.InsertNewOutput(cr)
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -563,6 +606,7 @@ func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
@@ -573,6 +617,7 @@ func handleGetAllOutputsByUserID(w http.ResponseWriter, r *http.Request) {
 		outputs, err = storage.GetAllOutputsByUserID(user.ID)
 	}
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
@@ -587,6 +632,7 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
@@ -603,6 +649,7 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 		output, err = storage.GetOutputByIDAndUserID(outputID, user.ID)
 	}
 	if err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, outputIDNotProvided()))
 		return
 	}
@@ -613,6 +660,7 @@ func handleGetOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	user, err := useProtectedRoute(w, r)
 	if err != nil {
+		log.Print(err)
 		WriteUnauthorized(w)
 		return
 	}
@@ -625,6 +673,7 @@ func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 
 	var ur OutputUpdateReq
 	if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
@@ -633,6 +682,7 @@ func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	if IsRootUser(user) {
 		output, err := storage.GetOutputByID(outputID)
 		if err != nil {
+			log.Print(err)
 			WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 			return
 		}
@@ -640,6 +690,7 @@ func handleUpdateOutputByIDAndUserID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := storage.UpdateOutputByIDAndUserID(outputID, userID, ur); err != nil {
+		log.Print(err)
 		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
 		return
 	}
