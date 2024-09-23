@@ -211,13 +211,13 @@ type User struct {
 }
 
 type UserCreationReq struct {
-	Name     string
-	Password string
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
 type UserUpdateReq struct {
-	Name     string
-	Password string
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
 const (

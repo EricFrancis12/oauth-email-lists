@@ -219,7 +219,7 @@ func (s *Storage) UpdateUserByID(id string, ur UserUpdateReq) error {
 	args := []interface{}{}
 
 	if ur.Name != "" {
-		query += "name = $1"
+		query += "name = $" + fmt.Sprintf("%d", len(args)+1)
 		args = append(args, ur.Name)
 	}
 
@@ -231,7 +231,7 @@ func (s *Storage) UpdateUserByID(id string, ur UserUpdateReq) error {
 		if len(args) > 0 {
 			query += ", "
 		}
-		query += "hashed_password = $2"
+		query += "hashed_password = $" + fmt.Sprintf("%d", len(args)+1)
 		args = append(args, hashedPassword)
 	}
 
