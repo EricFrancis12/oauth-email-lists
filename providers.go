@@ -74,7 +74,7 @@ func (gp GoogleProvider) Name() ProviderName {
 }
 
 func (gp GoogleProvider) Redirect(w http.ResponseWriter, r *http.Request) {
-	url := GoogleConfig().AuthCodeURL(googleOAuthStateString)
+	url := GoogleConfig().AuthCodeURL(googleOAuthStateStr())
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 

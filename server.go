@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/core"
 	muxadapter "github.com/awslabs/aws-lambda-go-api-proxy/gorillamux"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -293,8 +292,6 @@ func handleGoogleCampaign(w http.ResponseWriter, r *http.Request) {
 	makeProviderCampaignHandlerFunc(ProviderNameGoogle)(w, r)
 }
 
-var googleOAuthStateString = uuid.NewString()
-
 func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	pc, err := ProviderCookieFrom(r)
 	if err != nil {
@@ -305,7 +302,7 @@ func handleGoogleCampaignCallback(w http.ResponseWriter, r *http.Request) {
 	RedirectVisitor(w, r, pc.RedirectUrl)
 
 	state := r.URL.Query().Get(QueryParamState)
-	if state != googleOAuthStateString {
+	if state != googleOAuthStateStr() {
 		return
 	}
 

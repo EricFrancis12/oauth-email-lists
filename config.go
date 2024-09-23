@@ -8,6 +8,16 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const defaultGoogleOAuthStateStr string = "5dYo3mAPGIp8OxZepJgs62YKoz0SDjatFhBVgw5JEg7KvucAjh8qkPovuBteJhPF"
+
+func googleOAuthStateStr() string {
+	ss := os.Getenv(EnvGoogleOAuthStateStr)
+	if ss == "" {
+		return defaultGoogleOAuthStateStr
+	}
+	return ss
+}
+
 func GoogleConfig() *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     os.Getenv(EnvGoogleClientID),
