@@ -137,6 +137,14 @@ type AWeberOutput struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
+type BrevoOutput struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	ListID    string    `json:"listId"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type ResendOutput struct {
 	ID         string    `json:"id"`
 	UserID     string    `json:"userId"`
@@ -238,6 +246,7 @@ const (
 )
 
 const (
+	EnvBrevoApiKey           string = "BREVO_API_KEY"
 	EnvCatchAllRedirectUrl   string = "CATCH_ALL_REDIRECT_URL"
 	EnvCookieSecret          string = "COOKIE_SECRET"
 	EnvCryptoSecret          string = "CRYPTO_SECRET"
@@ -302,6 +311,7 @@ type OutputName string
 
 const (
 	OutputNameAWeber   OutputName = "aweber"
+	OutputNameBrevo    OutputName = "brevo"
 	OutputNameResend   OutputName = "resend"
 	OutputNameTelegram OutputName = "telegram"
 )

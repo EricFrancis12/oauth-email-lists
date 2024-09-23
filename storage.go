@@ -100,6 +100,7 @@ var initTablesQueries = []string{
 		foreign key (user_id) references users(id)
 	)`,
 	sqlTrigger("update_subscribers_updated_at", "subscribers"),
+	// TODO: add empty strings as default values for params 1-3
 	`create table if not exists outputs (
 		id varchar(50) primary key,
 		user_id varchar(50),

@@ -2,14 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/resend/resend-go/v2"
+	sendinblue "github.com/sendinblue/APIv3-go-library/v2/lib"
 )
 
 func makeOutput(
@@ -36,6 +39,14 @@ func makeOutput(
 			OmitAdTracking: omitAdTracking,
 			CreatedAt:      createdAt,
 			UpdatedAt:      updatedAt,
+		}
+	case OutputNameBrevo:
+		return BrevoOutput{
+			ID:        id,
+			UserID:    userID,
+			ListID:    listID,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
 		}
 	case OutputNameResend:
 		return ResendOutput{
@@ -99,6 +110,8 @@ func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 
 	encodedFormData := formData.Encode()
 
+	// TODO: Find new way of adding lead to aweber list (other than posting to addlead.pl),
+	// because this endpoint is possibly blocking traffic from cloud providers.
 	req, err := http.NewRequest(
 		http.MethodPost,
 		"https://www.aweber.com/scripts/addlead.pl",
@@ -118,6 +131,51 @@ func (ao AWeberOutput) Handle(emailAddr string, name string) error {
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("received %d status code", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (bo BrevoOutput) OutputName() OutputName {
+	return OutputNameBrevo
+}
+
+func (bo BrevoOutput) GetUserID() string {
+	return bo.UserID
+}
+
+func (bo BrevoOutput) Handle(emailAddr string, name string) error {
+	brevoApiKey := os.Getenv(EnvBrevoApiKey)
+	if brevoApiKey == "" {
+		return missingEnv(EnvBrevoApiKey)
+	}
+
+	cfg := sendinblue.NewConfiguration()
+	cfg.AddDefaultHeader("api-key", brevoApiKey)
+
+	if bo.ListID == "" {
+		return fmt.Errorf("listID cannot be empty")
+	}
+	i, err := strconv.Atoi(bo.ListID)
+	if err != nil {
+		return err
+	}
+	listID := int64(i)
+
+	sib := sendinblue.NewAPIClient(cfg)
+
+	contact := sendinblue.CreateContact{
+		Email: emailAddr,
+		Attributes: map[string]interface{}{
+			"FIRSTNAME": name,
+		},
+		ListIds: []int64{
+			listID,
+		},
+	}
+
+	if _, _, err := sib.ContactsApi.CreateContact(context.Background(), contact); err != nil {
+		return err
 	}
 
 	return nil
