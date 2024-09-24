@@ -67,6 +67,7 @@ func addRoutes(router *mux.Router) {
 
 	// General campaigns
 	router.HandleFunc("/c", Auth(handleMakeCampaign)).Methods(http.MethodPost)
+	router.HandleFunc("/c/decode", Auth(handleDecodeCampaign)).Methods(http.MethodGet)
 	router.HandleFunc("/c", handleCampaign).Methods(http.MethodGet)
 
 	// Discord campaigns
@@ -372,6 +373,29 @@ func handleMakeCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, NewJsonResponse(true, link, nil))
+}
+
+func handleDecodeCampaign(w http.ResponseWriter, r *http.Request) {
+	oauthID := r.URL.Query().Get(QueryParamC)
+	if oauthID == "" {
+		WriteJSON(w, http.StatusBadRequest, NewJsonResponse(false, nil, fmt.Errorf("missing required param "+QueryParamC)))
+		return
+	}
+
+	emailListID, provider, outputIDs, redirectUrl, err := decenc.Decode(oauthID)
+	if err != nil {
+		log.Print(err)
+		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+		return
+	}
+
+	campaign := Campaign{
+		EmailListID:  emailListID,
+		ProviderName: provider.Name(),
+		OutputIDs:    outputIDs,
+		RedirectUrl:  redirectUrl,
+	}
+	WriteJSON(w, http.StatusOK, NewJsonResponse(true, campaign, nil))
 }
 
 func handleInsertNewUser(w http.ResponseWriter, r *http.Request) {
