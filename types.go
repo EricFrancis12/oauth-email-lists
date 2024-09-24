@@ -129,12 +129,12 @@ type OutputUpdateReq struct {
 }
 
 type AWeberOutput struct {
-	ID             string    `json:"id"`
-	UserID         string    `json:"userId"`
-	ListID         string    `json:"listId"`
-	OmitAdTracking bool      `json:"omitAdTracking"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
+	ListID     string    `json:"listId"`
+	AdTracking string    `json:"adTracking"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type BrevoOutput struct {

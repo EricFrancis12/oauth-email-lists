@@ -1,7 +1,5 @@
 package main
 
-const adTrackingAppName = "oauth-email-lists"
-
 const cookieMaxAge = 0
 
 const (
