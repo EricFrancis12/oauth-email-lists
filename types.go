@@ -163,6 +163,14 @@ type TelegramOutput struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+type WebhookOutput struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	UrlFmt    string    `json:"urlFmt"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type ProviderResult struct {
 	Name      string `json:"name"`
 	EmailAddr string `json:"emailAddr"`
@@ -315,6 +323,7 @@ const (
 	OutputNameBrevo    OutputName = "brevo"
 	OutputNameResend   OutputName = "resend"
 	OutputNameTelegram OutputName = "telegram"
+	OutputNameWebhook  OutputName = "webhook"
 )
 
 type ProviderName string

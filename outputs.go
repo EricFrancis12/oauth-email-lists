@@ -63,6 +63,14 @@ func makeOutput(
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
 		}
+	case OutputNameWebhook:
+		return WebhookOutput{
+			ID:        id,
+			UserID:    userID,
+			UrlFmt:    param1,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+		}
 	}
 	return nil
 }
@@ -218,6 +226,10 @@ func (to TelegramOutput) GetUserID() string {
 	return to.UserID
 }
 
+func (to TelegramOutput) StripolMap(emailAddr string, name string) map[string]string {
+	return emailAddrAndNameStripolMap(emailAddr, name)
+}
+
 func (to TelegramOutput) Handle(emailAddr string, name string) error {
 	telegramBotID := os.Getenv(EnvTelegramBotID)
 	if telegramBotID == "" {
@@ -225,17 +237,10 @@ func (to TelegramOutput) Handle(emailAddr string, name string) error {
 	}
 
 	si := stripol.New(stripolLeftDelim, stripolRightDelim)
-	si.RegisterVars(to.StrIpolMap(emailAddr, name))
+	si.RegisterVars(to.StripolMap(emailAddr, name))
 	msg := si.Eval(to.MsgFmt)
 
 	return SendMessageToTelegramChannel(telegramBotID, to.ChatID, msg)
-}
-
-func (to TelegramOutput) StrIpolMap(emailAddr string, name string) map[string]string {
-	return map[string]string{
-		StrIpolEmailAddr: emailAddr,
-		StrIpolName:      name,
-	}
 }
 
 func SendMessageToTelegramChannel(botID string, chatId string, message string) error {
@@ -243,4 +248,32 @@ func SendMessageToTelegramChannel(botID string, chatId string, message string) e
 	fdm[FormFieldTelegramChatID] = strings.NewReader(chatId)
 	fdm[FormFieldText] = strings.NewReader(message)
 	return fdm.Upload(TelegramAPIMessageUrl(botID))
+}
+
+func (wo WebhookOutput) OutputName() OutputName {
+	return OutputNameWebhook
+}
+
+func (wo WebhookOutput) GetUserID() string {
+	return wo.UserID
+}
+
+func (wo WebhookOutput) StripolMap(emailAddr string, name string) map[string]string {
+	return emailAddrAndNameStripolMap(emailAddr, name)
+}
+
+func (wo WebhookOutput) Handle(emailAddr string, name string) error {
+	si := stripol.New(stripolLeftDelim, stripolRightDelim)
+	si.RegisterVars(wo.StripolMap(url.QueryEscape(emailAddr), url.QueryEscape(name)))
+	_url := si.Eval(wo.UrlFmt)
+
+	_, err := http.Get(_url)
+	return err
+}
+
+func emailAddrAndNameStripolMap(emailAddr string, name string) map[string]string {
+	return map[string]string{
+		StrIpolEmailAddr: emailAddr,
+		StrIpolName:      name,
+	}
 }
