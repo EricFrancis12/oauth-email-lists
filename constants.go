@@ -3,6 +3,11 @@ package main
 const cookieMaxAge = 0
 
 const (
+	stripolLeftDelim  = "{{"
+	stripolRightDelim = "}}"
+)
+
+const (
 	filePathEnv       = ".env"
 	filePathEnvLocal  = ".env.local"
 	filePathLoginPage = "assets/login.html"

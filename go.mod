@@ -5,6 +5,7 @@ go 1.23
 toolchain go1.23.1
 
 require (
+	github.com/EricFrancis12/stripol v0.0.0-20241001215438-a00c779f7414
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible

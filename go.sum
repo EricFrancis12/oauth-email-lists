@@ -1,5 +1,7 @@
 cloud.google.com/go/compute/metadata v0.3.0 h1:Tz+eQXMEqDIKRsmY3cHTL6FVaynIjX2QxYC4trgAKZc=
 cloud.google.com/go/compute/metadata v0.3.0/go.mod h1:zFmK7XCadkQkj6TtorcaGlCW1hT1fIilQDwofLpJ20k=
+github.com/EricFrancis12/stripol v0.0.0-20241001215438-a00c779f7414 h1:H+uIeDHApssrbNjarkDGUMxXwSTK/66Mc4ZOWzMggtE=
+github.com/EricFrancis12/stripol v0.0.0-20241001215438-a00c779f7414/go.mod h1:QYI8NmVpfQWRnADN/RfRfHVZ2Ptemtkis8WD3cdKvaM=
 github.com/antihax/optional v1.0.0 h1:xK2lYat7ZLaVVcIuj82J8kIro4V6kDe0AUDFboUCwcg=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/aws/aws-lambda-go v1.47.0 h1:0H8s0vumYx/YKs4sE7YM0ktwL2eWse+kfopsRI1sXVI=
