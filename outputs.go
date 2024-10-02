@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/EricFrancis12/stripol"
 	"github.com/resend/resend-go/v2"
 	sendinblue "github.com/sendinblue/APIv3-go-library/v2/lib"
 )
@@ -223,11 +224,18 @@ func (to TelegramOutput) Handle(emailAddr string, name string) error {
 		return missingEnv(EnvTelegramBotID)
 	}
 
-	si := NewStrIpol(strIpolLeftDelim, strIpolRightDelim)
+	si := stripol.New(stripolLeftDelim, stripolRightDelim)
 	si.RegisterVars(to.StrIpolMap(emailAddr, name))
 	msg := si.Eval(to.MsgFmt)
 
 	return SendMessageToTelegramChannel(telegramBotID, to.ChatID, msg)
+}
+
+func (to TelegramOutput) StrIpolMap(emailAddr string, name string) map[string]string {
+	return map[string]string{
+		StrIpolEmailAddr: emailAddr,
+		StrIpolName:      name,
+	}
 }
 
 func SendMessageToTelegramChannel(botID string, chatId string, message string) error {
