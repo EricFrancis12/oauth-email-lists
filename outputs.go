@@ -180,11 +180,8 @@ func (bo BrevoOutput) Handle(emailAddr string, name string) error {
 		},
 	}
 
-	if _, _, err := sib.ContactsApi.CreateContact(context.Background(), contact); err != nil {
-		return err
-	}
-
-	return nil
+	_, _, err = sib.ContactsApi.CreateContact(context.Background(), contact)
+	return err
 }
 
 func (ro ResendOutput) OutputName() OutputName {
@@ -211,11 +208,7 @@ func (ro ResendOutput) Handle(emailAddr string, name string) error {
 		AudienceId:   ro.AudienceID,
 	}
 	_, err := client.Contacts.Create(params)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (to TelegramOutput) OutputName() OutputName {
