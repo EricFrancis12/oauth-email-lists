@@ -39,12 +39,11 @@ func makeOutput(
 		}
 	case OutputNameBrevo:
 		return BrevoOutput{
-			ID:         id,
-			UserID:     userID,
-			ListID:     listID,
-			ExternalID: param1,
-			CreatedAt:  createdAt,
-			UpdatedAt:  updatedAt,
+			ID:        id,
+			UserID:    userID,
+			ListID:    listID,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
 		}
 	case OutputNameResend:
 		return ResendOutput{
@@ -173,7 +172,6 @@ func (bo BrevoOutput) Handle(emailAddr string, name string) error {
 		Email: emailAddr,
 		Attributes: map[string]interface{}{
 			"FIRSTNAME": name,
-			"EXT_ID":    bo.ExternalID,
 		},
 		ListIds: []int64{
 			listID,

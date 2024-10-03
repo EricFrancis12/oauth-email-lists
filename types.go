@@ -138,12 +138,11 @@ type AWeberOutput struct {
 }
 
 type BrevoOutput struct {
-	ID         string    `json:"id"`
-	UserID     string    `json:"userId"`
-	ListID     string    `json:"listId"`
-	ExternalID string    `json:"externalId"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	ListID    string    `json:"listId"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type ResendOutput struct {
