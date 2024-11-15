@@ -10,7 +10,7 @@ This application leverages the power of third-party OAuth providers, allowing us
 - Redirect users to a specified URL after subscription
 - Post subscriber data to third-party applications on sign-up (currently supports output to Aweber, Brevo, Resend, and Telegram)
 
-# How it Works
+## How it Works
 
 The application is essentially an opt-in funnel.
 
