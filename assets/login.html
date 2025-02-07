@@ -105,12 +105,11 @@
 
                 if (res.status >= 300) {
                     setMessage("login error", "red");
-                    return;
+                } else {
+                    setMessage("You are logged in", "green");
+                    usernameInputEle.value = "";
+                    passwordInputEle.value = "";
                 }
-
-                setMessage("You are logged in", "green");
-                usernameInputEle.value = "";
-                passwordInputEle.value = "";
             } catch (err) {
                 setMessage("unknown error", "red");
             } finally {

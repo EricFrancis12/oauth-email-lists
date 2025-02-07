@@ -138,11 +138,14 @@ func handlePostLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := storage.GetUserByUsernameAndPassword(li.Username, li.Password)
-	if err != nil || user == nil {
-		log.Print(err)
-		WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
-		return
+	user, err := NewRootUser(li.Username, li.Password)
+	if err != nil {
+		user, err = storage.GetUserByUsernameAndPassword(li.Username, li.Password)
+		if err != nil || user == nil {
+			log.Print(err)
+			WriteJSON(w, http.StatusInternalServerError, NewJsonResponse(false, nil, err))
+			return
+		}
 	}
 
 	if err := Login(w, user); err != nil {
